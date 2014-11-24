@@ -4,10 +4,17 @@ import MySQLdb
 from mysql.connector import errorcode
 from larionov_api_app import dbService
 from larionov_api_app.service import Codes
-from larionov_api.error_handler import response_error
+from larionov_api_app.service import response_error
+from larionov_api_app.service import check_optional_params, check_required_params
 
 
 def create(**data):
+    try:
+        check_required_params(data, ['username', 'email', 'name', 'about'])
+    except Exception as e:
+        response = response_error(Codes.unknown_error, str(e))
+        return response
+
     # Тут должна быть проверка на корректность данных в data
     db = dbService.connect()
     cursor = db.cursor()
@@ -18,7 +25,7 @@ def create(**data):
 
     values = (data['username'],
               data['email'],
-              data['email'],
+              data['name'],
               data['about'],
               bool(data['isAnonymous']))
 
@@ -58,12 +65,8 @@ def create(**data):
     return response
 
 
-def details(**data):
+def details(get_resp=False, **data):
     print("Details !!!")
-
-    db = dbService.connect()
-    cursor = db.cursor()
-
     query = """SELECT id, username, email, name, about, isAnonymous,
               GROUP_CONCAT(DISTINCT thread
               ORDER BY thread SEPARATOR ' ') AS subscriptions,
@@ -80,8 +83,14 @@ def details(**data):
               WHERE email = %s"""
     values = (data['user'])
 
+    db = dbService.connect()
+    cursor = db.cursor()
+
     cursor.execute(query, values)
     user = cursor.fetchone()
+
+    cursor.close()
+    db.close()
 
     if user['email'] is None or len(user) == 0:
         user = {}
@@ -105,8 +114,17 @@ def details(**data):
 
         user['isAnonymous'] = bool(user['isAnonymous'])
 
-    cursor.close()
-    db.close()
+    if get_resp:
+        if len(user) == 0:
+            str_err = "User %s not found" % data['user']
+            response = response_error(Codes.not_found, str_err)
+        else:
+            response = {
+                'code': Codes.ok,
+                'response': user
+            }
+        return response
+
     return user
 
 
@@ -133,13 +151,13 @@ def follow(**data):
         if e[0] == errorcode.ER_PARSE_ERROR:
             response.update({
                 'code': Codes.incorrect_query,
-                'response': e
+                'response': str(e)
             })
 
         else:
             response.update({
                 'code': Codes.unknown_error,
-                'response': e
+                'response': str(e)
             })
 
     finally:
@@ -147,7 +165,7 @@ def follow(**data):
         db.close()
 
     if len(response) == 0:
-        user = {"user": data['follower']}
+        user = {'user': data['follower']}
         user = details(**user)
         response.update({
             'code': Codes.ok,
@@ -175,13 +193,13 @@ def unfollow(**data):
         if e[0] == errorcode.ER_PARSE_ERROR:
             response.update({
                 'code': Codes.incorrect_query,
-                'response': e
+                'response': str(e)
             })
 
         else:
             response.update({
                 'code': Codes.unknown_error,
-                'response': e
+                'response': str(e)
             })
 
     finally:
@@ -215,7 +233,7 @@ def update_profile(**data):
         # А какие тут ошибки могут быть?
         response.update({
             'code': Codes.unknown_error,
-            'response': e
+            'response': str(e)
         })
         #raise e
 

@@ -5,10 +5,11 @@ import requests
 import json
 
 
-url = 'http://localhost:8888/db/api/user/listPosts'
+url = 'http://localhost:8888/db/api/user/unfollow/'
 
 values = {
-    'user': 'root@mail.ru'
+    'follower': 'root@mail.ru',
+    'followee': 'larionov.vadim@mail.ru'
 }
 
 headers = {'content-type': 'application/json'}

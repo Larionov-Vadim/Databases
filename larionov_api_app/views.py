@@ -1,20 +1,25 @@
 # -*- coding: utf-8 -*-
-from larionov_api_app.entitles import user, forum, thread, post
-
 __author__ = 'vadim'
 
-from django.shortcuts import render
+
 from django.views.decorators.csrf import csrf_exempt
 import json
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpResponse
+import re
+from larionov_api_app import dbService
+from larionov_api_app.service import Codes
+from larionov_api_app.entitles import user, forum, thread, post
+from larionov_api_app.service import get_request_data, response_error
+
 
 @csrf_exempt
 def user_view(request, method):
     print("I am user_views!")
-
+    print("method " + method)
+    method = re.sub('/', '', method)
     func = {
         'create': user.create,                  # Готовит сразу response
-        'details': user.details,
+        'details': user.details,                # Что-то response подобное
         'follow': user.follow,                  # Как-то работает, сразу response
         'listFollowers': user.list_followers,   # response
         'listFollowing': user.list_foolowing,   # В точности listFollowers
@@ -23,68 +28,72 @@ def user_view(request, method):
         'updateProfile': user.update_profile    # response
     }[method]
 
-    if request.method == 'POST':
-        request_data = json.loads(request.body, encoding='UTF-8')
-    else:
-        request_data = request.GET.dict()
+    try:
+        request_data = get_request_data(request)
+    except Exception as e:
+        response = response_error(Codes.invalid_query, e)
+        return HttpResponse(json.dumps(response), content_type='application/json')
 
     print(request.method)
     print(request_data)
 
-    response = HttpResponse()
-    response.write("<h3>Hello, World!</h3>")
-    #response.content
     try:
-        t = func(**request_data)
-        response.write(t)
+        if func is not user.details:
+            response = func(**request_data)
+        else:
+            response = func(get_resp=True, **request_data)
     except Exception as e:
         if e:
-            print("Exception!!!!!")
-            response.write(e)
+            print("Exception: ", str(e))
+            response = response_error(Codes.unknown_error, e)
 
-    return response
+    print("RESPONSE_USER: ", response)
+    return HttpResponse(json.dumps(response), content_type='application/json')
 
 
 @csrf_exempt
 def forum_view(request, method):
     print("I am forum_view")
-
+    method = re.sub('/', '', method)
     func = {
         'create': forum.create,                 # response
-        'details': forum.details,
+        'details': forum.details,               # response
         'listPosts': forum.list_posts,          # response
         'listThreads': forum.list_threads,      # response
         'listUsers': forum.list_users           # response
     }[method]
 
-    if request.method == 'POST':
-        request_data = json.loads(request.body, encoding='UTF-8')
-    else:
-        request_data = request.GET.dict()
-
-    response = HttpResponse()
-    response.write("<h3>Hello, World!</h3>")
     try:
-        t = func(**request_data)
-        response.write(t)
-
+        request_data = get_request_data(request)
     except Exception as e:
-        print("Exception!!!")
-        response.write(e)
+        response = response_error(Codes.invalid_query, e)
+        return HttpResponse(json.dumps(response), content_type='application/json')
 
-    print(response)
-    return response
+    print(request.method)
+    print(request_data)
+
+    try:
+        if func is not forum.details:
+            response = func(**request_data)
+        else:
+            response = func(get_resp=True, **request_data)
+    except Exception as e:
+        print("Exception: ", str(e))
+        response = response_error(Codes.unknown_error, e)
+
+    print("RESPONSE_FORUM: ", response)
+    return HttpResponse(json.dumps(response), content_type='application/json')
 
 
 @csrf_exempt
 def thread_view(request, method):
     print("I am thread_view")
-
+    method = re.sub('/', '', method)
     func = {
         'create': thread.create,                # response
-        'details': thread.details,
+        'details': thread.details,              # response, вроде как
         'close': thread.close,                  # response
-        'list': thread.list_threads,
+        'list': thread.list_threads,            # Чё-то абы как
         #'listPosts': thread.list_posts,
         'open': thread.open,                    # response
         'remove': thread.remove,                # response
@@ -95,31 +104,38 @@ def thread_view(request, method):
         'vote': thread.vote                     # response
     }[method]
 
-    if request.method == 'POST':
-        request_data = json.loads(request.body, encoding='UTF-8')
-    else:
-        request_data = request.GET.dict()
+    try:
+        request_data = get_request_data(request)
+    except Exception as e:
+        response = response_error(Codes.invalid_query, e)
+        return HttpResponse(json.dumps(response), content_type='application/json')
 
-    response = HttpResponse()
+    print(request.method)
+    print(request_data)
 
     try:
-        t = func(**request_data)
-        response.write(t)
+        if func is thread.details:
+            response = func(get_resp=True, **request_data)
+        elif func is thread.list_threads:
+            response = func(get_resp=True, **request_data)
+        else:
+            response = func(**request_data)
     except Exception as e:
-        print("Exception!!!")
-        response.write(e)
+        print("Exception: ", str(e))
+        response = response_error(Codes.unknown_error, e)
 
-    return response
+    print("RESPONSE_THREAD: ", response)
+    return HttpResponse(json.dumps(response), content_type='application/json')
 
 
 @csrf_exempt
 def post_view(request, method):
     print("I am post_views!")
-
+    method = re.sub('/', '', method)
     func = {
         'create': post.create,      # response
-        'details': post.details,
-        'list': post.list_posts,
+        'details': post.details,    # Как-то работает
+        'list': post.list_posts,    # Чё-то как-то
         'remove': post.remove,      # response
         'restore': post.restore,    # response
         'update': post.update,      # response
@@ -134,14 +150,29 @@ def post_view(request, method):
     print(request.method)
     print(request_data)
 
-    response = HttpResponse()
-    response.write("<h3>Hello, World!</h3>")
+    try:
+        request_data = get_request_data(request)
+    except Exception as e:
+        response = response_error(Codes.invalid_query, e)
+        return HttpResponse(json.dumps(response), content_type='application/json')
 
     try:
-        t = func(**request_data)
-        response.write(t)
+        if func is post.details:
+            response = func(get_resp=True, **request_data)
+        elif func is post.list_posts:
+            response = func(get_resp=True, **request_data)
+        else:
+            response = func(**request_data)
     except Exception as e:
         if e:
-            print("Exception!!!")
-            response.write(e)
-    return response
+            print("Exception: ", str(e))
+            response = response_error(Codes.unknown_error, e)
+
+    print("RESPONSE_POST: ", response)
+    return HttpResponse(json.dumps(response), content_type='application/json')
+
+
+@csrf_exempt
+def clear_view(request):
+    ret_resp = dbService.clear()
+    return HttpResponse(json.dumps(ret_resp), content_type='application/json')

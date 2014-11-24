@@ -4,7 +4,7 @@ __author__ = 'vadim'
 import requests
 import json
 
-url = 'http://localhost:8888/db/api/post/vote'
+url = 'http://localhost:8888/db/api/post/details'
 
 values = {
     'forum': 'forum1',
@@ -17,8 +17,7 @@ values = {
 headers = {'content-type': 'application/json'}
 
 get_params = {
-    'post': 3,
-    'vote': -1
+    'post': 3
 }
 # Get запрос
 g = requests.get(url, params=get_params)

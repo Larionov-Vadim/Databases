@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 __author__ = 'vadim'
 
+import json
+
 
 class Codes:
     ok = 0
@@ -20,3 +22,32 @@ def check_required_params(kwargs, params):
     for param in params:
         if param not in kwargs:
             raise Exception("Required parameter %s not found" % param)
+
+
+def get_request_data(request):
+    try:
+        if request.method == 'POST':
+            request_data = json.loads(request.body, encoding='UTF-8')
+        else:
+            lists = request.GET.lists()
+            request_data = dict()
+            for param in lists:
+                if len(param[1]) == 1:
+                    request_data[param[0]] = param[1][0]
+
+                else:
+                    request_data[param[0]] = param[1]
+
+
+    except Exception as e:
+        raise e
+
+    return request_data
+
+
+def response_error(code, err):
+    response = {
+        'code': code,
+        'response': str(err)
+    }
+    return response

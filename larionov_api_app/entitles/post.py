@@ -3,7 +3,7 @@ __author__ = 'vadim'
 import MySQLdb
 from mysql.connector import errorcode
 from larionov_api_app import dbService
-from larionov_api.error_handler import response_error
+from larionov_api_app.service import response_error
 from larionov_api_app.service import Codes
 from larionov_api_app.service import check_optional_params
 import user
@@ -84,7 +84,7 @@ def create(**data):
     return response
 
 
-def details(**data):
+def details(get_resp=False, **data):
     db = dbService.connect()
     cursor = db.cursor()
 
@@ -119,6 +119,17 @@ def details(**data):
         post['isEdited'] = bool(post['isEdited'])
         post['isHighlighted'] = bool(post['isHighlighted'])
         post['isSpam'] = bool(post['isSpam'])
+
+    if get_resp:
+        if len(post) == 0:
+            str_err = "Post with id=%s not found" % data['post']
+            response = response_error(Codes.not_found, str_err)
+        else:
+            response = {
+                'code': Codes.ok,
+                'response': post
+            }
+        return response
 
     return post
 
@@ -222,8 +233,6 @@ def update(**data):
     return response
 
 
-
-
 def vote(**data):
     values = (data['post'])
     if str(data['vote']) == '1':
@@ -270,7 +279,7 @@ def vote(**data):
     return response
 
 
-def list_posts(**data):
+def list_posts(get_resp=False, **data):
     db = dbService.connect()
     cursor = db.cursor()
 
@@ -307,6 +316,15 @@ def list_posts(**data):
             ret_posts.append(pst)
         else:
             ret_posts = []
+
+    if get_resp:
+        # А если len(ret_post) == 0 ?
+        response = {
+            'code': Codes.ok,
+            'response': ret_posts
+        }
+        return response
+
     return ret_posts
 
 

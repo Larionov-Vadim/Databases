@@ -3,15 +3,20 @@ __author__ = 'vadim'
 import MySQLdb
 from mysql.connector import errorcode
 from larionov_api_app import dbService
-from larionov_api.error_handler import response_error
+from larionov_api_app.service import response_error
 from larionov_api_app.service import Codes
 import user
 import forum
+from larionov_api_app.service import check_optional_params, check_required_params
 
 
 def create(**data):
     print("Thread Create")
-    # Здесь должна быть проверка на корректность данных в **data
+    try:
+        check_required_params(data, ['forum', 'title', 'isClosed', 'user', 'date', 'message', 'slug'])
+    except Exception as e:
+        response = response_error(Codes.unknown_error, str(e))
+        return response
 
     db = dbService.connect()
     cursor = db.cursor()
@@ -20,8 +25,7 @@ def create(**data):
             isClosed, isDeleted, date, forum, user)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"""
 
-    if 'isDeleted' not in data:
-        data['isDeleted'] = False
+    check_optional_params(data, 'isDeleted', False)
 
     values = (
         data['title'],
@@ -40,7 +44,7 @@ def create(**data):
         db.commit()
 
     except MySQLdb.Error as e:
-        # db.rollback()
+        db.rollback()
         if e[0] == errorcode.ER_DUP_ENTRY:
             cursor.execute("SELECT * FROM Thread WHERE slug='%s'" % data['slug'])
             thread = cursor.fetchone()
@@ -78,13 +82,21 @@ def create(**data):
     return response
 
 
-def details(**data):
+def details(get_resp=False, **data):
     print("Thread details")
+
+    try:
+        check_required_params(data, ['thread'])
+    except Exception as e:
+        if get_resp:
+            return response_error(Codes.unknown_error, str(e))
+        else:
+            raise e
+
     query = """SELECT id, title, slug, message, likes, dislikes,
               likes-dislikes AS points, isClosed, isDeleted,
               user, forum, posts, date
               FROM Thread WHERE id = %s""" % data['thread']
-
 
     db = dbService.connect()
     cursor = db.cursor()
@@ -94,7 +106,7 @@ def details(**data):
     db.close()
 
     if thread is None:
-        return {}
+        return response_error(Codes.not_found, "Thread with id=%s not found" % data['thread'])
 
     if thread['title'] is None:
         thread = {}
@@ -111,6 +123,16 @@ def details(**data):
         thread['date'] = thread['date'].strftime("%Y-%m-%d %H:%M:%S")
         thread['isClosed'] = bool(thread['isClosed'])
         thread['isDeleted'] = bool(thread['isDeleted'])
+
+    if get_resp:
+        if len(thread) != 0:
+            response = {
+                'code': Codes.ok,
+                'response': thread
+            }
+        else:
+            response = response_error(Codes.not_found, "Thread with id=%s not found" % data['thread'])
+        return response
 
     return thread
 
@@ -179,7 +201,7 @@ def open(**data):
     return response
 
 
-def list_threads(**data):
+def list_threads(get_resp=False, **data):
     print("Post list")
     db = dbService.connect()
     cursor = db.cursor()
@@ -221,6 +243,15 @@ def list_threads(**data):
     ret = list()
     for thr in threads:
         ret.append(thr)
+
+    if get_resp:
+        ## Если len(ret) == 0?
+        response = {
+            'code': Codes.ok,
+            'response': ret
+        }
+        return response
+
     return ret
 
 
@@ -408,7 +439,7 @@ def vote(**data):
     else:
         response = {
             'code': Codes.unknown_error,
-            'response': 'Not enough parameters or have uncorrect parameters'
+            'response': "Not enough parameters or have uncorrect parameters"
         }
         return response
 
@@ -433,10 +464,7 @@ def vote(**data):
         thread_data = {'thread': data['thread']}
         thread = details(**thread_data)
         if len(thread) == 0:
-            response = {
-                'code': Codes.not_found,
-                'response': "Thread with id=%s not found" % data['thread']
-            }
+            response = response_error(Codes.not_found, "Thread with id=%s not found" % data['thread'])
         else:
             response = {
                 'code': Codes.ok,

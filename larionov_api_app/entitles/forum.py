@@ -3,15 +3,21 @@ __author__ = 'vadim'
 import MySQLdb
 from mysql.connector import errorcode
 from larionov_api_app.service import Codes
-from larionov_api.error_handler import response_error
+from larionov_api_app.service import response_error
 from larionov_api_app import dbService
 import user
 import post
 import thread
+from larionov_api_app.service import check_optional_params, check_required_params
 
 
 def create(**data):
-    # Здесь должна быть проверка на корректность данных в **data
+    try:
+        check_required_params(data, ['name', 'short_name', 'user'])
+    except Exception as e:
+        response = response_error(Codes.unknown_error, str(e))
+        return response
+
     print("Forum Create")
     db = dbService.connect()
     cursor = db.cursor()
@@ -56,7 +62,7 @@ def create(**data):
 
 
 # Всё надо проверять
-def details(db=0, close_db=True, **data):
+def details(get_resp=False, db=0, close_db=True, **data):
     print("Forum details")
 
     if db == 0:
@@ -78,6 +84,18 @@ def details(db=0, close_db=True, **data):
     cursor.close()
     if close_db:
         db.close()
+
+    if get_resp:
+        if len(forum) == 0:
+            str_err = "Forum '%s' not found" % data['forum']
+            response = response_error(Codes.not_found, str_err)
+        else:
+            response = {
+                'code': Codes.ok,
+                'response': forum
+            }
+        return response
+
     return forum
 
 
@@ -85,11 +103,7 @@ def list_posts(**data):
     posts = post.list_posts(**data)
 
     if len(posts) == 0:
-        response = {
-            'code': Codes.not_found,
-            'response': 'Posts not found'
-        }
-        return response
+        return response_error(Codes.not_found, "Posts not found")
 
     if 'related' in data:
         if 'user' in data['related']:
@@ -217,23 +231,3 @@ def list_threads(**data):
         'response': threads
     }
     return response
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
