@@ -12,8 +12,7 @@ def create(**data):
     try:
         check_required_params(data, ['username', 'email', 'name', 'about'])
     except Exception as e:
-        response = response_error(Codes.unknown_error, str(e))
-        return response
+        return response_error(Codes.unknown_error, str(e))
 
     # Тут должна быть проверка на корректность данных в data
     db = dbService.connect()
@@ -110,7 +109,13 @@ def details(get_resp=False, **data):
         if user['subscriptions'] is None:
             user['subscriptions'] = []
         else:
+            # Строка не проходит тесты :(
+            # Аналогично в forum.list_users
             user['subscriptions'] = user['subscriptions'].split()
+            list_subscriptions = list()
+            for elem in user['subscriptions']:
+                list_subscriptions.append(int(elem))
+            user['subscriptions'] = list_subscriptions
 
         user['isAnonymous'] = bool(user['isAnonymous'])
 
@@ -137,7 +142,9 @@ def follow(**data):
     query = """INSERT INTO Followers(follower, followee)
                 VALUES (%s, %s)"""
 
-    values = (data['follower'], data['followee'])
+    #values = (data['follower'], data['followee'])
+    #experiment
+    values = (data['followee'], data['follower'])
 
     response = dict()
     print("CHEEEEK")
@@ -180,7 +187,10 @@ def unfollow(**data):
     cursor = db.cursor()
 
     query = """DELETE FROM Followers WHERE follower=%s AND followee=%s"""
-    values = (data['follower'], data['followee'])
+
+    #values = (data['follower'], data['followee'])
+    #experiment
+    values = (data['followee'], data['follower'])
 
     response = dict()
     try:
@@ -393,21 +403,3 @@ def list_posts(**data):
     cursor.close()
     db.close()
     return response
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

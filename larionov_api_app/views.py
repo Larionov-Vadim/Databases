@@ -94,7 +94,7 @@ def thread_view(request, method):
         'details': thread.details,              # response, вроде как
         'close': thread.close,                  # response
         'list': thread.list_threads,            # Чё-то абы как
-        #'listPosts': thread.list_posts,
+        'listPosts': thread.list_posts,         # Без сортировок
         'open': thread.open,                    # response
         'remove': thread.remove,                # response
         'restore': thread.restore,              # response
@@ -117,6 +117,8 @@ def thread_view(request, method):
         if func is thread.details:
             response = func(get_resp=True, **request_data)
         elif func is thread.list_threads:
+            response = func(get_resp=True, **request_data)
+        elif func is thread.list_posts:
             response = func(get_resp=True, **request_data)
         else:
             response = func(**request_data)

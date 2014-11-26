@@ -93,17 +93,30 @@ def details(get_resp=False, **data):
         else:
             raise e
 
+    # check optional params
+    if 'related' in data:
+        for elem in data['related']:
+            if elem not in ['user', 'forum']:
+                return response_error(Codes.incorrect_query, "Illegal arg %s" % elem)
+
     query = """SELECT id, title, slug, message, likes, dislikes,
               likes-dislikes AS points, isClosed, isDeleted,
               user, forum, posts, date
               FROM Thread WHERE id = %s""" % data['thread']
 
-    db = dbService.connect()
-    cursor = db.cursor()
-    cursor.execute(query)
-    thread = cursor.fetchone()
-    cursor.close()
-    db.close()
+    try:
+        db = dbService.connect()
+        cursor = db.cursor()
+        cursor.execute(query)
+        thread = cursor.fetchone()
+    except MySQLdb.Error as e:
+        if e[0] == errorcode.ER_PARSE_ERROR:
+            return response_error(Codes.incorrect_query, e)
+        else:
+            return response_error(Codes.unknown_error, e)
+    finally:
+        cursor.close()
+        db.close()
 
     if thread is None:
         return response_error(Codes.not_found, "Thread with id=%s not found" % data['thread'])
@@ -231,6 +244,7 @@ def list_threads(get_resp=False, **data):
 
     cursor.execute(query)
     threads = cursor.fetchall()
+    print("COUNT THREADS: ", len(threads))
 
     for thread_data in threads:
         if thread_data['title'] is not None:
@@ -363,15 +377,19 @@ def update(**data):
 
 
 def remove(**data):
-    db = dbService.connect()
-    cursor = db.cursor()
+    try:
+        check_required_params(data, ['thread'])
+    except Exception as e:
+        response = response_error(Codes.unknown_error, str(e))
+        return response
 
-    query = """UPDATE Thread SET isDeleted = 1 WHERE id = %s"""
-    values = (data['thread'])
-
+    query = """UPDATE Thread SET isDeleted = 1 WHERE id=%s""" % data['thread']
     response = list()
     try:
-        cursor.execute(query, values)
+        db = dbService.connect()
+        cursor = db.cursor()
+        cursor.execute(query)
+        cursor.execute("UPDATE Post SET isDeleted = 1 WHERE thread=%s" % data['thread'])
         db.commit()
     except MySQLdb.Error as e:
         db.rollback()
@@ -396,15 +414,19 @@ def remove(**data):
 
 
 def restore(**data):
-    db = dbService.connect()
-    cursor = db.cursor()
+    try:
+        check_required_params(data, ['thread'])
+    except Exception as e:
+        response = response_error(Codes.unknown_error, str(e))
+        return response
 
-    query = """UPDATE Thread SET isDeleted = 0 WHERE id = %s"""
-    values = (data['thread'])
-
+    query = """UPDATE Thread SET isDeleted = 0 WHERE id = %s""" % data['thread']
     response = list()
     try:
-        cursor.execute(query, values)
+        db = dbService.connect()
+        cursor = db.cursor()
+        cursor.execute(query)
+        cursor.execute("UPDATE Post SET isDeleted = 0 WHERE thread = %s" % data['thread'])
         db.commit()
     except MySQLdb.Error as e:
         db.rollback()
@@ -473,6 +495,55 @@ def vote(**data):
     return response
 
 
-def list_posts(**data):
+def list_posts(get_resp=False, **data):
+    print("Thread List_Post")
     # Тут нужна магия при сортировке
-    return True
+    # Нет параметра sort
+    try:
+        check_required_params(data, ['thread'])
+    except Exception as e:
+        if get_resp:
+            return response_error(Codes.unknown_error, str(e))
+
+    query = """SELECT date, dislikes, forum, id, isApproved, isDeleted, isEdited, isHighlighted,\
+                isSpam, likes, message, parent, likes-dislikes AS points, thread, user \
+                FROM Post WHERE thread=%s """ % data['thread']
+
+    if 'since' in data:
+        query += """AND date >= '%s' """ % data['since']
+    if 'order' in data:
+        query += """ORDER BY date %s """ % data['order']
+    else:
+        query += """ORDER BY date DESC """
+
+    if 'limit' in data:
+        query += """LIMIT %s """ % data['limit']
+
+    db = dbService.connect()
+    cursor = db.cursor()
+    cursor.execute(query)
+    posts = cursor.fetchall()
+
+    for post_data in posts:
+        if post_data['id'] is not None:
+            post_data['isApproved'] = bool(post_data['isApproved'])
+            post_data['isDeleted'] = bool(post_data['isDeleted'])
+            post_data['isEdited'] = bool(post_data['isEdited'])
+            post_data['isHighlighted'] = bool(post_data['isHighlighted'])
+            post_data['date'] = post_data['date'].strftime("%Y-%m-%d %H:%M:%S")
+        else:
+            posts = []
+
+    ret = list()
+    for pst in posts:
+        ret.append(pst)
+
+    if get_resp:
+        ## Если len(ret) == 0?
+        response = {
+            'code': Codes.ok,
+            'response': ret
+        }
+        return response
+
+    return ret

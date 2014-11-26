@@ -100,10 +100,12 @@ def details(get_resp=False, db=0, close_db=True, **data):
 
 
 def list_posts(**data):
+    # Приходит forum, а для list_posts нужен thread
     posts = post.list_posts(**data)
 
     if len(posts) == 0:
-        return response_error(Codes.not_found, "Posts not found")
+        # Знатный костыль, но так требует серв
+        return response_error(Codes.ok, "")
 
     if 'related' in data:
         if 'user' in data['related']:
@@ -151,6 +153,8 @@ def list_users(**data):
 
     if 'since_id' in data:
         query += """AND id >= %s """ % data['since_id']
+    query += "GROUP BY id "
+
     if 'order' in data:
         query += """ORDER BY name %s """ % data['order']
     else:
@@ -159,9 +163,11 @@ def list_users(**data):
     if 'limit' in data:
         query += """LIMIT %s """ % data['limit']
 
+    print("QUERY: ", query)
     cursor.execute(query)
     users = cursor.fetchall()
 
+    print("COUNT::: ", len(users))
     for user_data in users:
         if user_data['email'] is not None:
             if user_data['followers'] is None:
@@ -178,7 +184,12 @@ def list_users(**data):
             if user_data['subscriptions'] is None:
                 user_data['subscriptions'] = []
             else:
+                # Строка не проходит тесты :(
                 user_data['subscriptions'] = user_data['subscriptions'].split()
+                list_subscriptions = list()
+                for elem in user_data['subscriptions']:
+                    list_subscriptions.append(int(elem))
+                user_data['subscriptions'] = list_subscriptions
 
             user_data['isAnonymous'] = bool(user_data['isAnonymous'])
         else:
@@ -190,8 +201,8 @@ def list_users(**data):
 
     if len(users) == 0:
         response = {
-            'code': Codes.not_found,
-            'response': "Forum with short_name=%s not found" % data['forum']
+            'code': Codes.ok,
+            'response': ""
         }
     else:
         response = {
@@ -209,11 +220,12 @@ def list_threads(**data):
     threads = thread.list_threads(**data)
 
     if len(threads) == 0:
-        response = {
-            'code': Codes.not_found,
-            'response': 'Threads not found, forum short_name=%s' % data['forum']
-        }
-        return response
+        #response = {
+        #    'code': Codes.not_found,
+        #    'response': 'Threads not found, forum short_name=%s' % data['forum']
+        #}
+        #return response
+        return response_error(Codes.ok, "")
 
     elif 'related' in data:
         if 'user' in data['related']:

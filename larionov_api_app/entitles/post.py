@@ -135,15 +135,17 @@ def details(get_resp=False, **data):
 
 
 def remove(**data):
-    db = dbService.connect()
-    cursor = db.cursor()
-
     query = """UPDATE Post SET isDeleted = 1
                WHERE id = %s """ % data['post']
 
     response = list()
     try:
+        db = dbService.connect()
+        cursor = db.cursor()
         cursor.execute(query)
+        query_upd = """UPDATE Thread SET posts=posts-1 \
+                       WHERE id=(SELECT thread FROM Post WHERE id=%s) """ % data['post']
+        cursor.execute(query_upd)
         db.commit()
     except MySQLdb.Error as e:
         db.rollback()
@@ -167,15 +169,17 @@ def remove(**data):
 
 
 def restore(**data):
-    db = dbService.connect()
-    cursor = db.cursor()
-
     query = """UPDATE Post SET isDeleted = 0
                WHERE id = %s """ % data['post']
 
     response = list()
     try:
+        db = dbService.connect()
+        cursor = db.cursor()
         cursor.execute(query)
+        query_upd = """UPDATE Thread SET posts=posts+1 \
+                       WHERE id=(SELECT thread FROM Post WHERE id=%s) """ % data['post']
+        cursor.execute(query_upd)
         db.commit()
     except MySQLdb.Error as e:
         db.rollback()
@@ -280,8 +284,8 @@ def vote(**data):
 
 
 def list_posts(get_resp=False, **data):
-    db = dbService.connect()
-    cursor = db.cursor()
+    print("Post List_posts")
+    print("data: ", data)
 
     query = """SELECT date, dislikes, forum, id, isApproved, isDeleted,
                 isEdited, isHighlighted, isSpam, likes, message, parent,
@@ -306,10 +310,15 @@ def list_posts(get_resp=False, **data):
     if 'limit' in data:
         query += """LIMIT %s """ % data['limit']
 
+    print("Query: ", query)
+
+    db = dbService.connect()
+    cursor = db.cursor()
     cursor.execute(query)
     posts = cursor.fetchall()
 
     ret_posts = list()
+    print("posts: ", posts)
     for pst in posts:
         if pst['forum'] is not None:
             pst['date'] = pst['date'].strftime("%Y-%m-%d %H:%M:%S")
@@ -326,23 +335,3 @@ def list_posts(get_resp=False, **data):
         return response
 
     return ret_posts
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
