@@ -45,6 +45,8 @@ def create(**data):
     response = list()
     try:
         cursor.execute(query, values)
+        data['id'] = cursor.lastrowid
+        cursor.execute("UPDATE Thread SET posts=posts+1 WHERE id=%s" % data['thread'])
         db.commit()
 
     except MySQLdb.Error as e:
@@ -65,7 +67,7 @@ def create(**data):
     post = {
         'date': data['date'],
         'forum': data['forum'],
-        'id': cursor.lastrowid,
+        'id': data['id'],
         'isApproved': data['isApproved'],
         'isDeleted': data['isDeleted'],
         'isEdited': data['isEdited'],

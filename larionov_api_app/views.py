@@ -150,7 +150,7 @@ def post_view(request, method):
         request_data = request.GET.dict()
 
     print(request.method)
-    print(request_data)
+    print("RequestData", request_data)
 
     try:
         request_data = get_request_data(request)

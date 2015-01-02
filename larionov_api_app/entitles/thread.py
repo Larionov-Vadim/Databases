@@ -389,7 +389,9 @@ def remove(**data):
         db = dbService.connect()
         cursor = db.cursor()
         cursor.execute(query)
-        cursor.execute("UPDATE Post SET isDeleted = 1 WHERE thread=%s" % data['thread'])
+        a = cursor.execute("UPDATE Post SET isDeleted = 1 WHERE thread=%s" % data['thread'])
+        cursor.execute("UPDATE Thread SET posts = 0 WHERE id=%s" % data['thread'])
+        print("AAAAA", a)
         db.commit()
     except MySQLdb.Error as e:
         db.rollback()
@@ -426,7 +428,9 @@ def restore(**data):
         db = dbService.connect()
         cursor = db.cursor()
         cursor.execute(query)
-        cursor.execute("UPDATE Post SET isDeleted = 0 WHERE thread = %s" % data['thread'])
+        count_posts = cursor.execute("UPDATE Post SET isDeleted = 0 WHERE thread = %s" % data['thread'])
+        query_upd = """UPDATE Thread SET posts = %s WHERE id=%s""" % (count_posts, data['thread'])
+        cursor.execute(query_upd)
         db.commit()
     except MySQLdb.Error as e:
         db.rollback()
