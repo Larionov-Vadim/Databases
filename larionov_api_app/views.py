@@ -178,3 +178,9 @@ def post_view(request, method):
 def clear_view(request):
     ret_resp = dbService.clear()
     return HttpResponse(json.dumps(ret_resp), content_type='application/json')
+
+
+@csrf_exempt
+def hello(request):
+    response = "Hello, my Friend!"
+    return HttpResponse(response)

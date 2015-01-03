@@ -7,9 +7,6 @@ urlpatterns = patterns('',
     # url(r'^blog/', include('blog.urls')),
 
     url(r'^admin/', include(admin.site.urls)),
-    #url(r'^user/(?P<method>\S+)', 'larionov_api_app.views.user_view'),
-    #url(r'^forum/(?P<method>\S+)', 'larionov_api_app.views.forum_view'),
-
 
     url(r'^db/api/user/(?P<method>\S+)', 'larionov_api_app.views.user_view'),
     url(r'^db/api/forum/(?P<method>\S+)', 'larionov_api_app.views.forum_view'),
@@ -23,4 +20,5 @@ urlpatterns = patterns('',
     #url(r'^db/api/post/(?P<method>\S+)', 'larionov_api_app.views.post_view'),
     #url(r'^db/api/clear/', 'larionov_api_app.views.clear_view'),
 
+    #url(r'$', 'larionov_api_app.views.hello'),
 )
