@@ -5,16 +5,13 @@ from mysql.connector import errorcode
 from larionov_api_app import dbService
 from larionov_api_app.service import response_error
 from larionov_api_app.service import Codes
-from larionov_api_app.service import check_optional_params
+from larionov_api_app.service import check_optional_params, check_required_params
 import user
 import forum
 import thread
 
 
 def create(**data):
-    db = dbService.connect()
-    cursor = db.cursor()
-
     query = """INSERT INTO Post(message, isApproved, isDeleted,
                 isEdited, isHighlighted, isSpam, date, parent,
                  forum, thread, user)
@@ -42,7 +39,8 @@ def create(**data):
         data['user']
     )
 
-    response = list()
+    db = dbService.connect()
+    cursor = db.cursor()
     try:
         cursor.execute(query, values)
         data['id'] = cursor.lastrowid
@@ -53,14 +51,12 @@ def create(**data):
         db.rollback()
         # Посты не уникальны
         if e[0] == errorcode.ER_PARSE_ERROR:
-            response = response_error(Codes.incorrect_query, e)
+            return response_error(Codes.incorrect_query, e)
 
         else:
-            response = response_error(Codes.unknown_error, e)
+            return response_error(Codes.unknown_error, e)
 
     finally:
-        # Для обновления posts в Thread в БД предусмотрены триггеры
-        #   increment_posts и decrement_posts
         cursor.close()
         db.close()
 
@@ -78,24 +74,22 @@ def create(**data):
         'thread': data['thread'],
         'user': data['user']
     }
-    if len(response) == 0:
-        response = {
-            'code': Codes.ok,
-            'response': post
-        }
-    return response
+
+    return {
+        'code': Codes.ok,
+        'response': post
+    }
 
 
 def details(get_resp=False, **data):
-    db = dbService.connect()
-    cursor = db.cursor()
-
     query = """SELECT date, dislikes, forum, id, isApproved,
               isDeleted, isEdited, isHighlighted, isSpam, likes,
               message, parent, likes - dislikes AS points,
               thread, user
               FROM Post WHERE id = %s""" % data['post']
 
+    db = dbService.connect()
+    cursor = db.cursor()
     cursor.execute(query)
     post = cursor.fetchone()
 
@@ -123,172 +117,151 @@ def details(get_resp=False, **data):
         post['isSpam'] = bool(post['isSpam'])
 
     if get_resp:
-        if len(post) == 0:
-            str_err = "Post with id=%s not found" % data['post']
-            response = response_error(Codes.not_found, str_err)
-        else:
+        if len(post) != 0:
             response = {
                 'code': Codes.ok,
                 'response': post
             }
+        else:
+            str_err = "Post with id=%s not found" % data['post']
+            response = response_error(Codes.not_found, str_err)
         return response
 
     return post
 
 
 def remove(**data):
-    query = """UPDATE Post SET isDeleted = 1
-               WHERE id = %s """ % data['post']
+    query = "UPDATE Post SET isDeleted=1 WHERE id=%s " % data['post']
 
-    response = list()
+    db = dbService.connect()
+    cursor = db.cursor()
     try:
-        db = dbService.connect()
-        cursor = db.cursor()
         cursor.execute(query)
-        query_upd = """UPDATE Thread SET posts=posts-1 \
+        query_upd = """UPDATE Thread SET posts=posts-1
                        WHERE id=(SELECT thread FROM Post WHERE id=%s) """ % data['post']
         cursor.execute(query_upd)
         db.commit()
     except MySQLdb.Error as e:
         db.rollback()
         if e[0] == errorcode.ER_PARSE_ERROR:
-            response = response_error(Codes.incorrect_query, e)
+            return response_error(Codes.incorrect_query, e)
         else:
-            response = response_error(Codes.unknown_error, e)
+            return response_error(Codes.unknown_error, e)
     finally:
         cursor.close()
         db.close()
 
     # А если нет post-а с таким id?
-    if len(response) == 0:
-        response = {
-            'code': Codes.ok,
-            'response': {
-                'post': data['post']
-            }
+    return {
+        'code': Codes.ok,
+        'response': {
+            'post': data['post']
         }
-    return response
+    }
 
 
 def restore(**data):
-    query = """UPDATE Post SET isDeleted = 0
-               WHERE id = %s """ % data['post']
+    query = """UPDATE Post SET isDeleted=0 WHERE id=%s """ % data['post']
 
-    response = list()
+    db = dbService.connect()
+    cursor = db.cursor()
     try:
-        db = dbService.connect()
-        cursor = db.cursor()
         cursor.execute(query)
-        query_upd = """UPDATE Thread SET posts=posts+1 \
+        query_upd = """UPDATE Thread SET posts=posts+1
                        WHERE id=(SELECT thread FROM Post WHERE id=%s) """ % data['post']
         cursor.execute(query_upd)
         db.commit()
     except MySQLdb.Error as e:
         db.rollback()
         if e[0] == errorcode.ER_PARSE_ERROR:
-            response = response_error(Codes.incorrect_query, e)
+            return response_error(Codes.incorrect_query, e)
         else:
-            response = response_error(Codes.unknown_error, e)
+            return response_error(Codes.unknown_error, e)
     finally:
         cursor.close()
         db.close()
 
     # А если нет post-а с таким id?
-    if len(response) == 0:
-        response = {
-            'code': Codes.ok,
-            'response': {
-                'post': data['post']
-            }
+    return {
+        'code': Codes.ok,
+        'response': {
+            'post': data['post']
         }
-    return response
+    }
+
 
 def update(**data):
-    db = dbService.connect()
-    cursor = db.cursor()
-
     query = """UPDATE Post SET message = %s WHERE id = %s"""
     values = (data['message'], data['post'])
 
-    response = list()
+    db = dbService.connect()
+    cursor = db.cursor()
     try:
         cursor.execute(query, values)
         db.commit()
     except MySQLdb.Error as e:
         db.rollback()
         # А какие тут ошибки могут быть?
-        response = response_error(Codes.unknown_error, err=e)
-        #raise e
+        return response_error(Codes.unknown_error, err=e)
     finally:
         cursor.close()
         db.close()
 
-    if len(response) == 0:
-        post_data = {'post': data['post']}
-        post = details(**post_data)
-        if len(post) == 0:
-            response = {
-                'code': Codes.not_found,
-                'response': "Post with id=%s not found" % data['post']
-            }
-        else:
-            response = {
-                'code': Codes.ok,
-                'response': post
-            }
-    return response
+    post = details(**{'post': data['post']})
+    if len(post) != 0:
+        return {
+            'code': Codes.ok,
+            'response': post
+        }
+    else:
+        return {
+            'code': Codes.not_found,
+            'response': "Post with id=%s not found" % data['post']
+        }
 
 
 def vote(**data):
-    values = (data['post'])
+    # Нужна ли проверка required params?
+
     if str(data['vote']) == '1':
-        query = """UPDATE Post SET likes = likes + 1 WHERE id = %s """
+        query = "UPDATE Post SET likes=likes+1 WHERE id=%s " % data['post']
     elif str(data['vote']) == '-1':
-        query = """UPDATE Post SET dislikes = dislikes + 1 WHERE id = %s """
+        query = "UPDATE Post SET dislikes=dislikes+1 WHERE id=%s " % data['post']
     else:
-        response = {
+        return {
             'code': Codes.unknown_error,
-            'response': 'Not enough parameters or have uncorrect parameters'
+            'response': 'Not enough parameters or have incorrect parameter'
         }
-        return response
 
     db = dbService.connect()
     cursor = db.cursor()
-
-    response = list()
     try:
-        cursor.execute(query, values)
+        cursor.execute(query)
         db.commit()
     except MySQLdb.Error as e:
         db.rollback()
         if e[0] == errorcode.ER_PARSE_ERROR:
-            response = response_error(Codes.incorrect_query, e)
+            return response_error(Codes.incorrect_query, e)
         else:
-            response = response_error(Codes.unknown_error, e)
+            return response_error(Codes.unknown_error, e)
     finally:
         cursor.close()
         db.close()
 
-    if len(response) == 0:
-        post_data = {'post': data['post']}
-        post = details(**post_data)
-        if len(post) == 0:
-            response = {
-                'code': Codes.not_found,
-                'response': "Post with id=%s not found" % data['post']
-            }
-        else:
-            response = {
-                'code': Codes.ok,
-                'response': post
-            }
-    return response
+    post = details(**{'post': data['post']})
+    if len(post) == 0:
+        return {
+            'code': Codes.not_found,
+            'response': "Post with id=%s not found" % data['post']
+        }
+    else:
+        return {
+            'code': Codes.ok,
+            'response': post
+        }
 
 
 def list_posts(get_resp=False, **data):
-    print("Post List_posts")
-    print("data: ", data)
-
     query = """SELECT date, dislikes, forum, id, isApproved, isDeleted,
                 isEdited, isHighlighted, isSpam, likes, message, parent,
                 likes - dislikes AS points, thread, user
@@ -312,15 +285,16 @@ def list_posts(get_resp=False, **data):
     if 'limit' in data:
         query += """LIMIT %s """ % data['limit']
 
-    print("Query: ", query)
-
     db = dbService.connect()
     cursor = db.cursor()
+
     cursor.execute(query)
     posts = cursor.fetchall()
 
+    cursor.close()
+    db.close()
+
     ret_posts = list()
-    print("posts: ", posts)
     for pst in posts:
         if pst['forum'] is not None:
             pst['date'] = pst['date'].strftime("%Y-%m-%d %H:%M:%S")
@@ -330,10 +304,9 @@ def list_posts(get_resp=False, **data):
 
     if get_resp:
         # А если len(ret_post) == 0 ?
-        response = {
+        return {
             'code': Codes.ok,
             'response': ret_posts
         }
-        return response
 
     return ret_posts

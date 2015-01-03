@@ -22,7 +22,7 @@ def user_view(request, method):
         'details': user.details,                # Что-то response подобное
         'follow': user.follow,                  # Как-то работает, сразу response
         'listFollowers': user.list_followers,   # response
-        'listFollowing': user.list_foolowing,   # В точности listFollowers
+        'listFollowing': user.list_following,   # В точности listFollowers
         'listPosts': user.list_posts,           # response
         'unfollow': user.unfollow,              # В точности как follow
         'updateProfile': user.update_profile    # response

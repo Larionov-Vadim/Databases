@@ -11,21 +11,18 @@ from larionov_api_app.service import check_optional_params, check_required_param
 
 
 def create(**data):
-    print("Thread Create")
     try:
         check_required_params(data, ['forum', 'title', 'isClosed', 'user', 'date', 'message', 'slug'])
     except Exception as e:
         response = response_error(Codes.unknown_error, str(e))
         return response
 
-    db = dbService.connect()
-    cursor = db.cursor()
-
     query = """INSERT INTO Thread(title, slug, message,
             isClosed, isDeleted, date, forum, user)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"""
 
-    check_optional_params(data, 'isDeleted', False)
+    if 'isDeleted' not in data:
+        data['isDeleted'] = False
 
     values = (
         data['title'],
@@ -39,8 +36,11 @@ def create(**data):
     )
 
     response = dict()
+    db = dbService.connect()
+    cursor = db.cursor()
     try:
         cursor.execute(query, values)
+        data['id'] = cursor.lastrowid
         db.commit()
 
     except MySQLdb.Error as e:
@@ -50,41 +50,37 @@ def create(**data):
             thread = cursor.fetchone()
             thread['date'] = thread['date'].strftime("%Y-%m-%d %H:%M:%S")
             # Ok возвращать????
-            response = response_error(Codes.ok, thread)
+            return response_error(Codes.ok, thread)
 
         elif e[0] == errorcode.ER_PARSE_ERROR:
-            response = response_error(Codes.incorrect_query, e)
+            return response_error(Codes.incorrect_query, e)
 
         else:
-            response = response_error(Codes.unknown_error, e)
+            return response_error(Codes.unknown_error, e)
 
     finally:
         cursor.close()
         db.close()
 
-    if len(response) == 0:
-        thread = {
-            "date": data['date'],
-            "forum": data['forum'],
-            "id": cursor.lastrowid,
-            "isClosed": data['isClosed'],
-            "isDeleted": data['isDeleted'],
-            "message": data['message'],
-            "slug": data['slug'],
-            "title": data['title'],
-            "user": data['user']
-        }
-        response = {
-            'code': Codes.ok,
-            'response': thread
-        }
+    thread = {
+        'date': data['date'],
+        'forum': data['forum'],
+        'id': data['id'],
+        'isClosed': data['isClosed'],
+        'isDeleted': data['isDeleted'],
+        'message': data['message'],
+        'slug': data['slug'],
+        'title': data['title'],
+        'user': data['user']
+    }
 
-    return response
+    return {
+        'code': Codes.ok,
+        'response': thread
+    }
 
 
 def details(get_resp=False, **data):
-    print("Thread details")
-
     try:
         check_required_params(data, ['thread'])
     except Exception as e:
@@ -104,9 +100,9 @@ def details(get_resp=False, **data):
               user, forum, posts, date
               FROM Thread WHERE id = %s""" % data['thread']
 
+    db = dbService.connect()
+    cursor = db.cursor()
     try:
-        db = dbService.connect()
-        cursor = db.cursor()
         cursor.execute(query)
         thread = cursor.fetchone()
     except MySQLdb.Error as e:
@@ -151,74 +147,62 @@ def details(get_resp=False, **data):
 
 
 def close(**data):
-    db = dbService.connect()
-    cursor = db.cursor()
-
     query = """UPDATE Thread SET isClosed = 1
                 WHERE id=%s""" % data['thread']
 
-    response = list()
+    db = dbService.connect()
+    cursor = db.cursor()
     try:
         cursor.execute(query)
         db.commit()
     except MySQLdb.Error as e:
         db.rollback()
         if e[0] == errorcode.ER_PARSE_ERROR:
-            response = response_error(Codes.incorrect_query, e)
+            return response_error(Codes.incorrect_query, e)
         else:
-            response = response_error(Codes.unknown_error, e)
+            return response_error(Codes.unknown_error, e)
 
     finally:
         cursor.close()
         db.close()
 
-    if len(response) == 0:
-        response = {
-            'code': Codes.ok,
-            'response': {
-                'thread': data['thread']
-            }
+    return {
+        'code': Codes.ok,
+        'response': {
+            'thread': data['thread']
         }
-    return response
+    }
 
 
 def open(**data):
-    db = dbService.connect()
-    cursor = db.cursor()
-
     query = """UPDATE Thread SET isClosed = 0
                 WHERE id=%s""" % data['thread']
 
-    response = list()
+    db = dbService.connect()
+    cursor = db.cursor()
     try:
         cursor.execute(query)
         db.commit()
     except MySQLdb.Error as e:
         db.rollback()
         if e[0] == errorcode.ER_PARSE_ERROR:
-            response = response_error(Codes.incorrect_query, e)
+            return response_error(Codes.incorrect_query, e)
         else:
-            response = response_error(Codes.unknown_error, e)
+            return response_error(Codes.unknown_error, e)
 
     finally:
         cursor.close()
         db.close()
 
-    if len(response) == 0:
-        response = {
-            'code': Codes.ok,
-            'response': {
-                'thread': data['thread']
-            }
+    return {
+        'code': Codes.ok,
+        'response': {
+            'thread': data['thread']
         }
-    return response
+    }
 
 
 def list_threads(get_resp=False, **data):
-    print("Post list")
-    db = dbService.connect()
-    cursor = db.cursor()
-
     query = """SELECT id, title, slug, message, likes, dislikes,
               likes-dislikes AS points, isClosed, isDeleted,
               user, forum, posts, date
@@ -242,9 +226,10 @@ def list_threads(get_resp=False, **data):
     if 'limit' in data:
         query += """LIMIT %s """ % data['limit']
 
+    db = dbService.connect()
+    cursor = db.cursor()
     cursor.execute(query)
     threads = cursor.fetchall()
-    print("COUNT THREADS: ", len(threads))
 
     for thread_data in threads:
         if thread_data['title'] is not None:
@@ -260,118 +245,101 @@ def list_threads(get_resp=False, **data):
 
     if get_resp:
         ## Если len(ret) == 0?
-        response = {
+        return {
             'code': Codes.ok,
             'response': ret
         }
-        return response
 
     return ret
 
 
 def subscribe(**data):
-    print("Thread subscribe")
-    print(data)
-    db = dbService.connect()
-    cursor = db.cursor()
-
     query = """INSERT INTO Subscriptions(user, thread)
               VALUES (%s, %s)"""
     values = (data['user'], data['thread'])
 
-    response = list()
+    db = dbService.connect()
+    cursor = db.cursor()
     try:
         cursor.execute(query, values)
         db.commit()
     except MySQLdb.Error as e:
         db.rollback()
         if e[0] == errorcode.ER_PARSE_ERROR:
-            response = response_error(Codes.incorrect_query, e)
+            return response_error(Codes.incorrect_query, e)
         else:
-            response = response_error(Codes.unknown_error, e)
-
+            return response_error(Codes.unknown_error, e)
     finally:
         cursor.close()
         db.close()
 
-    if len(response) == 0:
-        response = {
-            'code': Codes.ok,
-            'response': {
-                'thread': data['thread'],
-                'user': data['user']
-            }
+    return {
+        'code': Codes.ok,
+        'response': {
+            'thread': data['thread'],
+            'user': data['user']
         }
-    return response
+    }
 
 
 def unsubscribe(**data):
-    db = dbService.connect()
-    cursor = db.cursor()
-
     query = """DELETE FROM Subscriptions
                 WHERE user = %s AND thread = %s"""
     values = (data['user'], data['thread'])
 
-    response = list()
+    db = dbService.connect()
+    cursor = db.cursor()
     try:
         cursor.execute(query, values)
         db.commit()
     except MySQLdb.Error as e:
         db.rollback()
         if e[0] == errorcode.ER_PARSE_ERROR:
-            response = response_error(Codes.incorrect_query, e)
+            return response_error(Codes.incorrect_query, e)
         else:
-            response = response_error(Codes.unknown_error, e)
+            return response_error(Codes.unknown_error, e)
     finally:
         cursor.close()
         db.close()
 
-    if len(response) == 0:
-        response = {
-            'code': Codes.ok,
-            'response': {
-                'thread': data['thread'],
-                'user': data['user']
-            }
+    return {
+        'code': Codes.ok,
+        'response': {
+            'thread': data['thread'],
+            'user': data['user']
         }
-    return response
+    }
 
 
 def update(**data):
-    db = dbService.connect()
-    cursor = db.cursor()
-
     query = """UPDATE Thread SET message = %s, slug = %s
                 WHERE id = %s"""
     values = (data['message'], data['slug'], data['thread'])
 
-    response = list()
+    db = dbService.connect()
+    cursor = db.cursor()
     try:
         cursor.execute(query, values)
         db.commit()
     except MySQLdb.Error as e:
         db.rollback()
         # А какие тут ошибки могут быть?
-        response = response_error(Codes.unknown_error, err=e)
-        #raise e
+        return response_error(Codes.unknown_error, err=e)
     finally:
         cursor.close()
         db.close()
 
-    if len(response) == 0:
-        thread_data = {'thread': data['thread']}
-        thread = details(**thread_data)
-        if len(thread) == 0:
-            response = {
-                'code': Codes.not_found,
-                'response': "Thread with id=%s not found" % data['thread']
-            }
-        else:
-            response = {
-                'code': Codes.ok,
-                'response': thread
-            }
+    thread = details(**{'thread': data['thread']})
+    if len(thread) == 0:
+        response = {
+            'code': Codes.not_found,
+            'response': "Thread with id=%s not found" % data['thread']
+        }
+    else:
+        response = {
+            'code': Codes.ok,
+            'response': thread
+        }
 
     return response
 
@@ -380,127 +348,110 @@ def remove(**data):
     try:
         check_required_params(data, ['thread'])
     except Exception as e:
-        response = response_error(Codes.unknown_error, str(e))
-        return response
+        return response_error(Codes.unknown_error, e)
 
-    query = """UPDATE Thread SET isDeleted = 1 WHERE id=%s""" % data['thread']
-    response = list()
+    query = """UPDATE Thread SET isDeleted=1 WHERE id=%s""" % data['thread']
+
+    db = dbService.connect()
+    cursor = db.cursor()
     try:
-        db = dbService.connect()
-        cursor = db.cursor()
         cursor.execute(query)
-        a = cursor.execute("UPDATE Post SET isDeleted = 1 WHERE thread=%s" % data['thread'])
-        cursor.execute("UPDATE Thread SET posts = 0 WHERE id=%s" % data['thread'])
-        print("AAAAA", a)
+        cursor.execute("UPDATE Post SET isDeleted=1 WHERE thread=%s" % data['thread'])
+        cursor.execute("UPDATE Thread SET posts=0 WHERE id=%s" % data['thread'])
         db.commit()
     except MySQLdb.Error as e:
         db.rollback()
         if e[0] == errorcode.ER_PARSE_ERROR:
-            response = response_error(Codes.incorrect_query, e)
+            return response_error(Codes.incorrect_query, e)
         else:
-            response = response_error(Codes.unknown_error, e)
+            return response_error(Codes.unknown_error, e)
 
     finally:
         cursor.close()
         db.close()
 
-    # А если нет thread-а с таким id?
-    if len(response) == 0:
-        response = {
-            'code': Codes.ok,
-            'response': {
-                'thread': data['thread']
-            }
+    # А если нет thread-а с таким id, то что возвращать?
+    return {
+        'code': Codes.ok,
+        'response': {
+            'thread': data['thread']
         }
-    return response
+    }
 
 
 def restore(**data):
     try:
         check_required_params(data, ['thread'])
     except Exception as e:
-        response = response_error(Codes.unknown_error, str(e))
-        return response
+        return response_error(Codes.unknown_error, str(e))
 
-    query = """UPDATE Thread SET isDeleted = 0 WHERE id = %s""" % data['thread']
-    response = list()
+    query = """UPDATE Thread SET isDeleted=0 WHERE id=%s""" % data['thread']
+
+    db = dbService.connect()
+    cursor = db.cursor()
     try:
-        db = dbService.connect()
-        cursor = db.cursor()
         cursor.execute(query)
-        count_posts = cursor.execute("UPDATE Post SET isDeleted = 0 WHERE thread = %s" % data['thread'])
-        query_upd = """UPDATE Thread SET posts = %s WHERE id=%s""" % (count_posts, data['thread'])
+        count_posts = cursor.execute("UPDATE Post SET isDeleted=0 WHERE thread=%s" % data['thread'])
+        query_upd = "UPDATE Thread SET posts=%s WHERE id=%s" % (count_posts, data['thread'])
         cursor.execute(query_upd)
         db.commit()
     except MySQLdb.Error as e:
         db.rollback()
         if e[0] == errorcode.ER_PARSE_ERROR:
-            response = response_error(Codes.incorrect_query, e)
+            return response_error(Codes.incorrect_query, e)
         else:
-            response = response_error(Codes.unknown_error, e)
+            return response_error(Codes.unknown_error, e)
 
     finally:
         cursor.close()
         db.close()
 
-    # А если нет thread-а с таким id?
-    if len(response) == 0:
-        response = {
-            'code': Codes.ok,
-            'response': {
-                'thread': data['thread']
-            }
+    # А если нет thread-а с таким id, то что возвращать?
+    return {
+        'code': Codes.ok,
+        'response': {
+            'thread': data['thread']
         }
-    return response
+    }
 
 
 def vote(**data):
-    print("Thread vote")
-
-    values = (data['thread'])
     if str(data['vote']) == '1':
-        query = """UPDATE Thread SET likes = likes + 1 WHERE id = %s """
+        query = "UPDATE Thread SET likes=likes+1 WHERE id=%s " % data['thread']
     elif str(data['vote']) == '-1':
-        query = """UPDATE Thread SET dislikes = dislikes + 1 WHERE id = %s """
+        query = "UPDATE Thread SET dislikes=dislikes+1 WHERE id=%s " % data['thread']
     else:
-        response = {
+        return {
             'code': Codes.unknown_error,
-            'response': "Not enough parameters or have uncorrect parameters"
+            'response': "Not enough parameters or have uncorrected parameters"
         }
-        return response
 
     db = dbService.connect()
     cursor = db.cursor()
-
-    response = list()
     try:
-        cursor.execute(query, values)
+        cursor.execute(query)
         db.commit()
     except MySQLdb.Error as e:
         db.rollback()
         if e[0] == errorcode.ER_PARSE_ERROR:
-            response = response_error(Codes.incorrect_query, e)
+            return response_error(Codes.incorrect_query, e)
         else:
-            response = response_error(Codes.unknown_error, e)
+            return response_error(Codes.unknown_error, e)
     finally:
         cursor.close()
         db.close()
 
-    if len(response) == 0:
-        thread_data = {'thread': data['thread']}
-        thread = details(**thread_data)
-        if len(thread) == 0:
-            response = response_error(Codes.not_found, "Thread with id=%s not found" % data['thread'])
-        else:
-            response = {
-                'code': Codes.ok,
-                'response': thread
-            }
-    return response
+    thread = details(**{'thread': data['thread']})
+    if len(thread) != 0:
+        return {
+            'code': Codes.ok,
+            'response': thread
+        }
+    else:
+        return response_error(Codes.not_found, "Thread with id=%s not found" % data['thread'])
 
 
 def list_posts(get_resp=False, **data):
-    print("Thread List_Post")
     # Тут нужна магия при сортировке
     # Нет параметра sort
     try:
@@ -508,6 +459,8 @@ def list_posts(get_resp=False, **data):
     except Exception as e:
         if get_resp:
             return response_error(Codes.unknown_error, str(e))
+        else:
+            raise e
 
     query = """SELECT date, dislikes, forum, id, isApproved, isDeleted, isEdited, isHighlighted,\
                 isSpam, likes, message, parent, likes-dislikes AS points, thread, user \
@@ -544,10 +497,9 @@ def list_posts(get_resp=False, **data):
 
     if get_resp:
         ## Если len(ret) == 0?
-        response = {
+        return {
             'code': Codes.ok,
             'response': ret
         }
-        return response
 
     return ret

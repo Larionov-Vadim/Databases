@@ -18,19 +18,19 @@ def create(**data):
         response = response_error(Codes.unknown_error, str(e))
         return response
 
-    print("Forum Create")
-    db = dbService.connect()
-    cursor = db.cursor()
-
     query = "INSERT INTO Forum(name, short_name, user) VALUES (%s, %s, %s)"
     values = (data['name'], data['short_name'], data['user'])
-
     response = dict()
+
+    db = dbService.connect()
+    cursor = db.cursor()
     try:
         cursor.execute(query, values)
+        data['id'] = cursor.lastrowid
         db.commit()
 
     except MySQLdb.Error as e:
+        db.rollback()
         if e[0] == errorcode.ER_DUP_ENTRY:
             forum = details(db=db, close_db=False, **{'forum': data['short_name']})
             # Ok возвращать????
@@ -48,7 +48,7 @@ def create(**data):
 
     if len(response) == 0:
         forum = {
-            "id": cursor.lastrowid,
+            "id": data['id'],
             "name": data['name'],
             "short_name": data['short_name'],
             "user": data['user']
@@ -63,23 +63,21 @@ def create(**data):
 
 # Всё надо проверять
 def details(get_resp=False, db=0, close_db=True, **data):
-    print("Forum details")
+    query = """SELECT id, name, short_name, user FROM Forum WHERE short_name=%s"""
+    values = (data['forum'])
 
     if db == 0:
         db = dbService.connect()
     cursor = db.cursor()
 
-    query = """SELECT id, name, short_name, user FROM Forum WHERE short_name=%s"""
-    values = (data['forum'])
-
     cursor.execute(query, values)
     forum = cursor.fetchone()
-    if forum is None:
-        forum = {}
-    else:
-        if ('related' in data) and (data['related'].lower() == 'user'):
+    if forum is not None:
+        if ('related' in data) and (data['related'] == 'user'):
             user_data = {'user': forum['user']}
             forum['user'] = user.details(**user_data)
+    else:
+        forum = {}
 
     cursor.close()
     if close_db:
@@ -131,10 +129,6 @@ def list_posts(**data):
 
 
 def list_users(**data):
-    print("Forum list_users")
-    db = dbService.connect()
-    cursor = db.cursor()
-
     query = """SELECT id, username, email, name, about, isAnonymous,
               GROUP_CONCAT(DISTINCT thread
               ORDER BY thread SEPARATOR ' ') AS subscriptions,
@@ -163,11 +157,13 @@ def list_users(**data):
     if 'limit' in data:
         query += """LIMIT %s """ % data['limit']
 
-    print("QUERY: ", query)
+    db = dbService.connect()
+    cursor = db.cursor()
     cursor.execute(query)
     users = cursor.fetchall()
+    cursor.close()
+    db.close()
 
-    print("COUNT::: ", len(users))
     for user_data in users:
         if user_data['email'] is not None:
             if user_data['followers'] is None:
@@ -180,7 +176,6 @@ def list_users(**data):
             else:
                 user_data['following'] = user_data['following'].split()
 
-            # Вот это не проверил
             if user_data['subscriptions'] is None:
                 user_data['subscriptions'] = []
             else:
@@ -199,28 +194,22 @@ def list_users(**data):
     for usr in users:
         ret_users.append(usr)
 
-    if len(users) == 0:
-        response = {
-            'code': Codes.ok,
-            'response': ""
-        }
-    else:
-        response = {
-            'code': Codes.ok,
-            'response': ret_users
-        }
+    response = {
+        'code': Codes.ok,
+        'response': '',
+    }
 
-    cursor.close()
-    db.close()
+    if len(users) != 0:
+        response['response'] = ret_users
+
     return response
 
 
 def list_threads(**data):
-    print("Forum list_threads")
     threads = thread.list_threads(**data)
 
     if len(threads) == 0:
-        #response = {
+        # response = {
         #    'code': Codes.not_found,
         #    'response': 'Threads not found, forum short_name=%s' % data['forum']
         #}

@@ -34,11 +34,8 @@ def get_request_data(request):
             for param in lists:
                 if len(param[1]) == 1:
                     request_data[param[0]] = param[1][0]
-
                 else:
                     request_data[param[0]] = param[1]
-
-
     except Exception as e:
         raise e
 

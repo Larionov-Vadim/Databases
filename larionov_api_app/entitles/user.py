@@ -15,8 +15,6 @@ def create(**data):
         return response_error(Codes.unknown_error, str(e))
 
     # Тут должна быть проверка на корректность данных в data
-    db = dbService.connect()
-    cursor = db.cursor()
     query = "INSERT INTO User(username, email, name, about, isAnonymous) VALUES (%s, %s, %s, %s, %s)"
 
     if 'isAnonymous' not in data:
@@ -29,11 +27,14 @@ def create(**data):
               bool(data['isAnonymous']))
 
     response = dict()
+    db = dbService.connect()
+    cursor = db.cursor()
     try:
         cursor.execute(query, values)
         db.commit()
 
     except MySQLdb.Error as e:
+        db.rollback()
         if e[0] == errorcode.ER_DUP_ENTRY:
             response = response_error(Codes.user_exists, e)
 
@@ -65,7 +66,6 @@ def create(**data):
 
 
 def details(get_resp=False, **data):
-    print("Details !!!")
     query = """SELECT id, username, email, name, about, isAnonymous,
               GROUP_CONCAT(DISTINCT thread
               ORDER BY thread SEPARATOR ' ') AS subscriptions,
@@ -79,15 +79,12 @@ def details(get_resp=False, **data):
               ON User.email = Fr.follower
               LEFT JOIN Followers AS Fe
               ON User.email = Fe.followee
-              WHERE email = %s"""
-    values = (data['user'])
+              WHERE email = '%s'""" % data['user']
 
     db = dbService.connect()
     cursor = db.cursor()
-
-    cursor.execute(query, values)
+    cursor.execute(query)
     user = cursor.fetchone()
-
     cursor.close()
     db.close()
 
@@ -105,7 +102,6 @@ def details(get_resp=False, **data):
         else:
             user['following'] = user['following'].split()
 
-        # Вот это не проверил
         if user['subscriptions'] is None:
             user['subscriptions'] = []
         else:
@@ -134,20 +130,16 @@ def details(get_resp=False, **data):
 
 
 def follow(**data):
-    print("User_follow")
     # Проверка на корректность данных в **data гдеее?
-    db = dbService.connect()
-    cursor = db.cursor()
-
     query = """INSERT INTO Followers(follower, followee)
                 VALUES (%s, %s)"""
 
-    #values = (data['follower'], data['followee'])
-    #experiment
+    # Здесь всё верно
     values = (data['followee'], data['follower'])
 
     response = dict()
-    print("CHEEEEK")
+    db = dbService.connect()
+    cursor = db.cursor()
     try:
         cursor.execute(query, values)
         db.commit()
@@ -183,23 +175,19 @@ def follow(**data):
 
 
 def unfollow(**data):
-    db = dbService.connect()
-    cursor = db.cursor()
-
     query = """DELETE FROM Followers WHERE follower=%s AND followee=%s"""
 
-    #values = (data['follower'], data['followee'])
-    #experiment
+    # Тут всё верно
     values = (data['followee'], data['follower'])
-
     response = dict()
+
+    db = dbService.connect()
+    cursor = db.cursor()
     try:
         cursor.execute(query, values)
         db.commit()
 
     except MySQLdb.Error as e:
-        # Если email не существует
-        #if e[0] == errorcode.ER_NO_REFERENCED_ROW_2:
         if e[0] == errorcode.ER_PARSE_ERROR:
             response.update({
                 'code': Codes.incorrect_query,
@@ -227,14 +215,13 @@ def unfollow(**data):
 
 
 def update_profile(**data):
-    db = dbService.connect()
-    cursor = db.cursor()
-
     query = """ UPDATE User SET name=%s, about=%s
                 WHERE email=%s"""
     values = (data['name'], data['about'], data['user'])
-
     response = dict()
+
+    db = dbService.connect()
+    cursor = db.cursor()
     try:
         cursor.execute(query, values)
         db.commit()
@@ -245,12 +232,10 @@ def update_profile(**data):
             'code': Codes.unknown_error,
             'response': str(e)
         })
-        #raise e
 
     finally:
         cursor.close()
         db.close()
-
 
     if len(response) == 0:
         user = {'user': data['user']}
@@ -264,9 +249,7 @@ def update_profile(**data):
 
 
 def list_followers(**data):
-    db = dbService.connect()
-    cursor = db.cursor()
-
+    # Коннекшены либо передавать дальше надо, либо закрывать раньше!
     query = """SELECT DISTINCT Followers.followee AS user
                 FROM User LEFT JOIN Followers ON User.email=Followers.follower
                 INNER JOIN User AS Usr ON Followers.followee=Usr.email
@@ -283,6 +266,8 @@ def list_followers(**data):
     if 'limit' in data:
         query += """LIMIT %s """ % data['limit']
 
+    db = dbService.connect()
+    cursor = db.cursor()
     try:
         cursor.execute(query)
 
@@ -293,7 +278,6 @@ def list_followers(**data):
         return response
 
     followers = cursor.fetchall()
-
     ret = list()
     if followers is not None:
         for user in followers:
@@ -309,10 +293,7 @@ def list_followers(**data):
     return response
 
 
-def list_foolowing(**data):
-    db = dbService.connect()
-    cursor = db.cursor()
-
+def list_following(**data):
     query = """SELECT DISTINCT Followers.follower AS user
                 FROM User LEFT JOIN Followers ON User.email=Followers.followee
                 INNER JOIN User AS Usr ON Followers.follower=Usr.email
@@ -329,6 +310,8 @@ def list_foolowing(**data):
     if 'limit' in data:
         query += """LIMIT %s """ % data['limit']
 
+    db = dbService.connect()
+    cursor = db.cursor()
     try:
         cursor.execute(query)
 
@@ -356,9 +339,6 @@ def list_foolowing(**data):
 
 
 def list_posts(**data):
-    db = dbService.connect()
-    cursor = db.cursor()
-
     query = """SELECT date, dislikes, forum, id, isApproved,
               isDeleted, isEdited, isHighlighted, isSpam, likes,
               message, parent, likes - dislikes AS points,
@@ -376,6 +356,8 @@ def list_posts(**data):
     if 'limit' in data:
         query += """LIMIT %s """ % data['limit']
 
+    db = dbService.connect()
+    cursor = db.cursor()
     try:
         cursor.execute(query)
 
