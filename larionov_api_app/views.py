@@ -14,8 +14,8 @@ from larionov_api_app.service import get_request_data, response_error
 
 @csrf_exempt
 def user_view(request, method):
-    print("I am user_views!")
-    print("method " + method)
+    #print("I am user_views!")
+    #print("method " + method)
     method = re.sub('/', '', method)
     func = {
         'create': user.create,                  # Готовит сразу response
@@ -34,8 +34,8 @@ def user_view(request, method):
         response = response_error(Codes.invalid_query, e)
         return HttpResponse(json.dumps(response), content_type='application/json')
 
-    print(request.method)
-    print(request_data)
+    #print(request.method)
+    #print(request_data)
 
     try:
         if func is not user.details:
@@ -47,13 +47,13 @@ def user_view(request, method):
             print("Exception: ", str(e))
             response = response_error(Codes.unknown_error, e)
 
-    print("RESPONSE_USER: ", response)
+    #print("RESPONSE_USER: ", response)
     return HttpResponse(json.dumps(response), content_type='application/json')
 
 
 @csrf_exempt
 def forum_view(request, method):
-    print("I am forum_view")
+    #print("I am forum_view")
     method = re.sub('/', '', method)
     func = {
         'create': forum.create,                 # response
@@ -69,8 +69,8 @@ def forum_view(request, method):
         response = response_error(Codes.invalid_query, e)
         return HttpResponse(json.dumps(response), content_type='application/json')
 
-    print(request.method)
-    print(request_data)
+    #print(request.method)
+    #print(request_data)
 
     try:
         if func is not forum.details:
@@ -81,13 +81,13 @@ def forum_view(request, method):
         print("Exception: ", str(e))
         response = response_error(Codes.unknown_error, e)
 
-    print("RESPONSE_FORUM: ", response)
+    #print("RESPONSE_FORUM: ", response)
     return HttpResponse(json.dumps(response), content_type='application/json')
 
 
 @csrf_exempt
 def thread_view(request, method):
-    print("I am thread_view")
+    #print("I am thread_view")
     method = re.sub('/', '', method)
     func = {
         'create': thread.create,                # response
@@ -110,8 +110,8 @@ def thread_view(request, method):
         response = response_error(Codes.invalid_query, e)
         return HttpResponse(json.dumps(response), content_type='application/json')
 
-    print(request.method)
-    print(request_data)
+    #print(request.method)
+    #print(request_data)
 
     try:
         if func is thread.details:
@@ -126,7 +126,7 @@ def thread_view(request, method):
         print("Exception: ", str(e))
         response = response_error(Codes.unknown_error, e)
 
-    print("RESPONSE_THREAD: ", response)
+    #print("RESPONSE_THREAD: ", response)
     return HttpResponse(json.dumps(response), content_type='application/json')
 
 

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 __author__ = 'vadim'
 import MySQLdb
+import MySQLdb.cursors
 
 
 def connect():
@@ -13,6 +14,7 @@ def connect():
         'cursorclass': MySQLdb.cursors.SSDictCursor
     }
     db = MySQLdb.connect(**settings_db)
+    #db = mysql.connector.connect(**settings_db)
     return db
 
 

@@ -42,9 +42,11 @@ def create(**data):
     db = dbService.connect()
     cursor = db.cursor()
     try:
+        cursor.execute("START TRANSACTION")
         cursor.execute(query, values)
         data['id'] = cursor.lastrowid
         cursor.execute("UPDATE Thread SET posts=posts+1 WHERE id=%s" % data['thread'])
+        cursor.execute("COMMIT")
         db.commit()
 
     except MySQLdb.Error as e:
@@ -60,6 +62,8 @@ def create(**data):
         cursor.close()
         db.close()
 
+    if 'id' not in data:
+        print("FUUUU_ID")
     post = {
         'date': data['date'],
         'forum': data['forum'],
@@ -81,6 +85,7 @@ def create(**data):
     }
 
 
+# Using Primary key
 def details(get_resp=False, **data):
     query = """SELECT date, dislikes, forum, id, isApproved,
               isDeleted, isEdited, isHighlighted, isSpam, likes,

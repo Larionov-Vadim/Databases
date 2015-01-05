@@ -1,7 +1,0 @@
-<uwsgi>
-    <socket>:8077</socket>
-    <chdir>/home/vadim/PycharmProjects/larionov_api</chdir>
-    <module>django_wsgi</module>
-    <processes>4</processes> <!-- 进程数 --> 
-    <daemonize>uwsgi.log</daemonize>
-</uwsgi>

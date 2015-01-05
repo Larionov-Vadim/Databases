@@ -35,7 +35,6 @@ def create(**data):
         data['user']
     )
 
-    response = dict()
     db = dbService.connect()
     cursor = db.cursor()
     try:
@@ -50,8 +49,10 @@ def create(**data):
             thread = cursor.fetchone()
             thread['date'] = thread['date'].strftime("%Y-%m-%d %H:%M:%S")
             # Ok возвращать????
-            return response_error(Codes.ok, thread)
-
+            return {
+                'code': Codes.ok,
+                'response': thread
+            }
         elif e[0] == errorcode.ER_PARSE_ERROR:
             return response_error(Codes.incorrect_query, e)
 
@@ -147,8 +148,7 @@ def details(get_resp=False, **data):
 
 
 def close(**data):
-    query = """UPDATE Thread SET isClosed = 1
-                WHERE id=%s""" % data['thread']
+    query = "UPDATE Thread SET isClosed=1 WHERE id=%s" % data['thread']
 
     db = dbService.connect()
     cursor = db.cursor()
@@ -175,8 +175,7 @@ def close(**data):
 
 
 def open(**data):
-    query = """UPDATE Thread SET isClosed = 0
-                WHERE id=%s""" % data['thread']
+    query = "UPDATE Thread SET isClosed=0 WHERE id=%s" % data['thread']
 
     db = dbService.connect()
     cursor = db.cursor()
@@ -254,8 +253,7 @@ def list_threads(get_resp=False, **data):
 
 
 def subscribe(**data):
-    query = """INSERT INTO Subscriptions(user, thread)
-              VALUES (%s, %s)"""
+    query = "INSERT INTO Subscriptions(user, thread) VALUES (%s, %s)"
     values = (data['user'], data['thread'])
 
     db = dbService.connect()
@@ -283,8 +281,7 @@ def subscribe(**data):
 
 
 def unsubscribe(**data):
-    query = """DELETE FROM Subscriptions
-                WHERE user = %s AND thread = %s"""
+    query = "DELETE FROM Subscriptions WHERE user=%s AND thread=%s"
     values = (data['user'], data['thread'])
 
     db = dbService.connect()
