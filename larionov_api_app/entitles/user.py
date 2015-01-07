@@ -71,13 +71,13 @@ def details(get_resp=False, **data):
               ORDER BY Fr.followee SEPARATOR ' ') AS followers,
               GROUP_CONCAT(DISTINCT Fe.follower
               ORDER BY Fe.follower SEPARATOR ' ') AS following
-              FROM User LEFT JOIN Subscriptions
-              ON User.email=Subscriptions.user
+              FROM (SELECT * FROM User WHERE email='%s') AS Usr
+              LEFT JOIN Subscriptions
+              ON Usr.email=Subscriptions.user
               LEFT JOIN Followers AS Fr
-              ON User.email=Fr.follower
+              ON Usr.email=Fr.follower
               LEFT JOIN Followers AS Fe
-              ON User.email=Fe.followee
-              WHERE email='%s'""" % data['user']
+              ON Usr.email=Fe.followee""" % data['user']
 
     db = dbService.connect()
     cursor = db.cursor()
@@ -241,13 +241,14 @@ def list_followers(**data):
 
     followers = cursor.fetchall()
     ret = list()
-    if followers is not None:
-        for user in followers:
-            user_data = {"user": user['user']}
-            ret.append(details(**user_data))
 
     cursor.close()
     db.close()
+
+    if followers is not None:
+        for user in followers:
+            ret.append(details(**{"user": user['user']}))
+
     return {
         'code': Codes.ok,
         'response': ret
@@ -327,7 +328,7 @@ def list_posts(**data):
     posts = cursor.fetchall()
     ret = list()
     for post in posts:
-        post['date'] = post['date'].strftime("%Y-%m-%d %H:%M:%S")
+        #post['date'] = post['date'].strftime("%Y-%m-%d %H:%M:%S")
         post['isApproved'] = bool(post['isApproved'])
         post['isDeleted'] = bool(post['isDeleted'])
         post['isEdited'] = bool(post['isEdited'])

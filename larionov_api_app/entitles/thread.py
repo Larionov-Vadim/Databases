@@ -47,7 +47,7 @@ def create(**data):
         if e[0] == errorcode.ER_DUP_ENTRY:
             cursor.execute("SELECT * FROM Thread WHERE slug='%s'" % data['slug'])
             thread = cursor.fetchone()
-            thread['date'] = thread['date'].strftime("%Y-%m-%d %H:%M:%S")
+            #thread['date'] = thread['date'].strftime("%Y-%m-%d %H:%M:%S")
             # Ok возвращать????
             return {
                 'code': Codes.ok,
@@ -63,6 +63,11 @@ def create(**data):
         cursor.close()
         db.close()
 
+    if 'id' not in data:
+        print "id not in data"
+        
+    if data['id'] is None:
+        print "data['id'] is None :("
     thread = {
         'date': data['date'],
         'forum': data['forum'],
@@ -130,7 +135,7 @@ def details(get_resp=False, **data):
                 forum_data = {'forum': thread['forum']}
                 thread['forum'] = forum.details(**forum_data)
 
-        thread['date'] = thread['date'].strftime("%Y-%m-%d %H:%M:%S")
+        #thread['date'] = thread['date'].strftime("%Y-%m-%d %H:%M:%S")
         thread['isClosed'] = bool(thread['isClosed'])
         thread['isDeleted'] = bool(thread['isDeleted'])
 
@@ -234,7 +239,7 @@ def list_threads(get_resp=False, **data):
         if thread_data['title'] is not None:
             thread_data['isClosed'] = bool(thread_data['isClosed'])
             thread_data['isDeleted'] = bool(thread_data['isDeleted'])
-            thread_data['date'] = thread_data['date'].strftime("%Y-%m-%d %H:%M:%S")
+            #thread_data['date'] = thread_data['date'].strftime("%Y-%m-%d %H:%M:%S")
         else:
             threads = []
 
@@ -484,7 +489,7 @@ def list_posts(get_resp=False, **data):
             post_data['isDeleted'] = bool(post_data['isDeleted'])
             post_data['isEdited'] = bool(post_data['isEdited'])
             post_data['isHighlighted'] = bool(post_data['isHighlighted'])
-            post_data['date'] = post_data['date'].strftime("%Y-%m-%d %H:%M:%S")
+            #post_data['date'] = post_data['date'].strftime("%Y-%m-%d %H:%M:%S")
         else:
             posts = []
 

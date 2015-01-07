@@ -44,7 +44,7 @@ def user_view(request, method):
             response = func(get_resp=True, **request_data)
     except Exception as e:
         if e:
-            print("Exception: ", str(e))
+            print("Exception in User: ", str(e))
             response = response_error(Codes.unknown_error, e)
 
     #print("RESPONSE_USER: ", response)
@@ -78,7 +78,7 @@ def forum_view(request, method):
         else:
             response = func(get_resp=True, **request_data)
     except Exception as e:
-        print("Exception: ", str(e))
+        print("Exception in Forum: ", str(e))
         response = response_error(Codes.unknown_error, e)
 
     #print("RESPONSE_FORUM: ", response)
@@ -123,7 +123,7 @@ def thread_view(request, method):
         else:
             response = func(**request_data)
     except Exception as e:
-        print("Exception: ", str(e))
+        print("Exception in Thread: ", str(e))
         response = response_error(Codes.unknown_error, e)
 
     #print("RESPONSE_THREAD: ", response)
@@ -144,14 +144,6 @@ def post_view(request, method):
         'vote': post.vote           # response
     }[method]
 
-    if request.method == 'POST':
-        request_data = json.loads(request.body, encoding='UTF-8')
-    else:
-        request_data = request.GET.dict()
-
-    #print(request.method)
-    #print("RequestData", request_data)
-
     try:
         request_data = get_request_data(request)
     except Exception as e:
@@ -167,7 +159,7 @@ def post_view(request, method):
             response = func(**request_data)
     except Exception as e:
         if e:
-            print("Exception: ", str(e))
+            print("Exception in Post: ", str(e))
             response = response_error(Codes.unknown_error, e)
 
     #print("RESPONSE_POST: ", response)
