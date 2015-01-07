@@ -26,43 +26,41 @@ def create(**data):
               data['about'],
               bool(data['isAnonymous']))
 
-    response = dict()
     db = dbService.connect()
     cursor = db.cursor()
     try:
         cursor.execute(query, values)
+        data['id'] = cursor.lastrowid
         db.commit()
 
     except MySQLdb.Error as e:
         db.rollback()
         if e[0] == errorcode.ER_DUP_ENTRY:
-            response = response_error(Codes.user_exists, e)
+            return response_error(Codes.user_exists, e)
 
         elif e[0] == errorcode.ER_PARSE_ERROR:
-            response = response_error(Codes.incorrect_query, e)
+            return response_error(Codes.incorrect_query, e)
 
         else:
-            response = response_error(Codes.unknown_error, e)
+            return response_error(Codes.unknown_error, e)
 
     finally:
         cursor.close()
         db.close()
 
-    if len(response) == 0:
-        user = {
-            "about": data['about'],
-            "email": data['email'],
-            "id": cursor.lastrowid,
-            "isAnonymous": data['isAnonymous'],
-            "name": data['name'],
-            "username": data['username']
-        }
-        response.update({
-            'code': Codes.ok,
-            'response': user
-        })
+    user = {
+        'about': data['about'],
+        'email': data['email'],
+        'id': data['id'],
+        'isAnonymous': data['isAnonymous'],
+        'name': data['name'],
+        'username': data['username']
+    }
 
-    return response
+    return {
+        'code': Codes.ok,
+        'response': user
+    }
 
 
 def details(get_resp=False, **data):
@@ -74,12 +72,12 @@ def details(get_resp=False, **data):
               GROUP_CONCAT(DISTINCT Fe.follower
               ORDER BY Fe.follower SEPARATOR ' ') AS following
               FROM User LEFT JOIN Subscriptions
-              ON User.email = Subscriptions.user
+              ON User.email=Subscriptions.user
               LEFT JOIN Followers AS Fr
-              ON User.email = Fr.follower
+              ON User.email=Fr.follower
               LEFT JOIN Followers AS Fe
-              ON User.email = Fe.followee
-              WHERE email = '%s'""" % data['user']
+              ON User.email=Fe.followee
+              WHERE email='%s'""" % data['user']
 
     db = dbService.connect()
     cursor = db.cursor()
@@ -130,56 +128,41 @@ def details(get_resp=False, **data):
 
 
 def follow(**data):
-    # Проверка на корректность данных в **data гдеее?
-    query = """INSERT INTO Followers(follower, followee)
-                VALUES (%s, %s)"""
-
+    # Здесь должна быть проверка на корректность данных в **data
     # Здесь всё верно
-    values = (data['followee'], data['follower'])
+    query = """INSERT INTO Followers(follower, followee)
+               VALUES ('%s', '%s')""" % (data['followee'], data['follower'])
 
-    response = dict()
     db = dbService.connect()
     cursor = db.cursor()
     try:
-        cursor.execute(query, values)
+        cursor.execute(query)
         db.commit()
 
     except MySQLdb.Error as e:
         # Если email не существует
         #if e[0] == errorcode.ER_NO_REFERENCED_ROW_2:
         if e[0] == errorcode.ER_PARSE_ERROR:
-            response.update({
-                'code': Codes.incorrect_query,
-                'response': str(e)
-            })
-
+            return response_error(Codes.incorrect_query, e)
         else:
-            response.update({
-                'code': Codes.unknown_error,
-                'response': str(e)
-            })
+            return response_error(Codes.unknown_error, e)
 
     finally:
         cursor.close()
         db.close()
 
-    if len(response) == 0:
-        user = {'user': data['follower']}
-        user = details(**user)
-        response.update({
-            'code': Codes.ok,
-            'response': user
-        })
-
-    return response
+    user = details(**{'user': data['follower']})
+    return {
+        'code': Codes.ok,
+        'response': user
+    }
 
 
 def unfollow(**data):
-    query = """DELETE FROM Followers WHERE follower=%s AND followee=%s"""
+    query = "DELETE FROM Followers WHERE follower=%s AND followee=%s"
 
     # Тут всё верно
     values = (data['followee'], data['follower'])
-    response = dict()
 
     db = dbService.connect()
     cursor = db.cursor()
@@ -189,36 +172,24 @@ def unfollow(**data):
 
     except MySQLdb.Error as e:
         if e[0] == errorcode.ER_PARSE_ERROR:
-            response.update({
-                'code': Codes.incorrect_query,
-                'response': str(e)
-            })
-
+            return response_error(Codes.incorrect_query, e)
         else:
-            response.update({
-                'code': Codes.unknown_error,
-                'response': str(e)
-            })
+            return response_error(Codes.unknown_error, e)
 
     finally:
         cursor.close()
         db.close()
 
-    if len(response) == 0:
-        user = {"user": data['follower']}
-        user = details(**user)
-        response.update({
-            'code': Codes.ok,
-            'response': user
-        })
-    return response
+    user = details(**{"user": data['follower']})
+    return {
+        'code': Codes.ok,
+        'response': user
+    }
 
 
 def update_profile(**data):
-    query = """ UPDATE User SET name=%s, about=%s
-                WHERE email=%s"""
+    query = "UPDATE User SET name=%s, about=%s WHERE email=%s"
     values = (data['name'], data['about'], data['user'])
-    response = dict()
 
     db = dbService.connect()
     cursor = db.cursor()
@@ -227,25 +198,17 @@ def update_profile(**data):
         db.commit()
 
     except MySQLdb.Error as e:
-        # А какие тут ошибки могут быть?
-        response.update({
-            'code': Codes.unknown_error,
-            'response': str(e)
-        })
+        return response_error(Codes.unknown_error, e)
 
     finally:
         cursor.close()
         db.close()
 
-    if len(response) == 0:
-        user = {'user': data['user']}
-        user = details(**user)
-        response.update({
-            'code': Codes.ok,
-            'response': user
-        })
-
-    return response
+    user = details(**{'user': data['user']})
+    return {
+        'code': Codes.ok,
+        'response': user
+    }
 
 
 def list_followers(**data):
@@ -253,7 +216,7 @@ def list_followers(**data):
     query = """SELECT DISTINCT Followers.followee AS user
                 FROM User LEFT JOIN Followers ON User.email=Followers.follower
                 INNER JOIN User AS Usr ON Followers.followee=Usr.email
-                WHERE User.email = '%s' """ % str(data['user'])
+                WHERE User.email='%s' """ % str(data['user'])
 
     if 'since_id' in data:
         query += """AND Usr.id >= %s """ % str(data['since_id'])
@@ -272,10 +235,9 @@ def list_followers(**data):
         cursor.execute(query)
 
     except MySQLdb.Error as e:
-        response = response_error(Codes.unknown_error, e)
         cursor.close()
         db.close()
-        return response
+        return response_error(Codes.unknown_error, e)
 
     followers = cursor.fetchall()
     ret = list()
@@ -284,23 +246,22 @@ def list_followers(**data):
             user_data = {"user": user['user']}
             ret.append(details(**user_data))
 
-    response = {
+    cursor.close()
+    db.close()
+    return {
         'code': Codes.ok,
         'response': ret
     }
-    cursor.close()
-    db.close()
-    return response
 
 
 def list_following(**data):
     query = """SELECT DISTINCT Followers.follower AS user
                 FROM User LEFT JOIN Followers ON User.email=Followers.followee
                 INNER JOIN User AS Usr ON Followers.follower=Usr.email
-                WHERE User.email = '%s' """ % str(data['user'])
+                WHERE User.email='%s' """ % str(data['user'])
 
     if 'since_id' in data:
-        query += """AND Usr.id >= %s """ % str(data['since_id'])
+        query += """AND Usr.id>=%s """ % str(data['since_id'])
 
     if 'order' in data:
         query += """ORDER BY Usr.name %s """ % data['order']
@@ -316,10 +277,9 @@ def list_following(**data):
         cursor.execute(query)
 
     except MySQLdb.Error as e:
-        response = response_error(Codes.unknown_error, e)
         cursor.close()
         db.close()
-        return response
+        return response_error(Codes.unknown_error, e)
 
     following = cursor.fetchall()
 
@@ -329,24 +289,22 @@ def list_following(**data):
             user_data = {"user": user['user']}
             ret.append(details(**user_data))
 
-    response = {
+    cursor.close()
+    db.close()
+    return {
         'code': Codes.ok,
         'response': ret
     }
-    cursor.close()
-    db.close()
-    return response
 
 
 def list_posts(**data):
     query = """SELECT date, dislikes, forum, id, isApproved,
               isDeleted, isEdited, isHighlighted, isSpam, likes,
               message, parent, likes - dislikes AS points,
-              thread, user
-              FROM Post WHERE user = '%s' """ % data['user']
+              thread, user FROM Post WHERE user='%s' """ % data['user']
 
     if 'since' in data:
-        query += """AND date >= '%s' """ % data['since']
+        query += """AND date>='%s' """ % data['since']
 
     if 'order' in data:
         query += """ORDER BY date %s """ % data['order']
@@ -362,10 +320,9 @@ def list_posts(**data):
         cursor.execute(query)
 
     except MySQLdb.Error as e:
-        response = response_error(Codes.unknown_error, e)
         cursor.close()
         db.close()
-        return response
+        return response_error(Codes.unknown_error, e)
 
     posts = cursor.fetchall()
     ret = list()
@@ -378,10 +335,9 @@ def list_posts(**data):
         post['isSpam'] = bool(post['isSpam'])
         ret.append(post)
 
-    response = {
+    cursor.close()
+    db.close()
+    return {
         'code': Codes.ok,
         'response': ret
     }
-    cursor.close()
-    db.close()
-    return response

@@ -2,13 +2,11 @@
 __author__ = 'vadim'
 import MySQLdb
 from mysql.connector import errorcode
-from larionov_api_app.service import Codes
-from larionov_api_app.service import response_error
+from larionov_api_app.service import Codes, response_error, check_required_params
 from larionov_api_app import dbService
 import user
 import post
 import thread
-from larionov_api_app.service import check_optional_params, check_required_params
 
 
 def create(**data):
@@ -20,7 +18,6 @@ def create(**data):
 
     query = "INSERT INTO Forum(name, short_name, user) VALUES (%s, %s, %s)"
     values = (data['name'], data['short_name'], data['user'])
-    response = dict()
 
     db = dbService.connect()
     cursor = db.cursor()
@@ -34,65 +31,58 @@ def create(**data):
         if e[0] == errorcode.ER_DUP_ENTRY:
             forum = details(db=db, close_db=False, **{'forum': data['short_name']})
             # Ok возвращать????
-            response = response_error(Codes.ok, forum)
+            return response_error(Codes.ok, forum)
 
         elif e[0] == errorcode.ER_PARSE_ERROR:
-            response = response_error(Codes.incorrect_query, e)
+            return response_error(Codes.incorrect_query, e)
 
         else:
-            response = response_error(Codes.unknown_error, e)
+            return response_error(Codes.unknown_error, e)
 
     finally:
         cursor.close()
         db.close()
 
-    if len(response) == 0:
-        forum = {
-            "id": data['id'],
-            "name": data['name'],
-            "short_name": data['short_name'],
-            "user": data['user']
-        }
-        response = {
-            'code': Codes.ok,
-            'response': forum
-        }
-
-    return response
+    forum = {
+        'id': data['id'],
+        'name': data['name'],
+        'short_name': data['short_name'],
+        'user': data['user']
+    }
+    return {
+        'code': Codes.ok,
+        'response': forum
+    }
 
 
-# Всё надо проверять
 def details(get_resp=False, db=0, close_db=True, **data):
-    query = """SELECT id, name, short_name, user FROM Forum WHERE short_name=%s"""
+    query = "SELECT id, name, short_name, user FROM Forum WHERE short_name=%s"
     values = (data['forum'])
 
     if db == 0:
         db = dbService.connect()
     cursor = db.cursor()
-
     cursor.execute(query, values)
     forum = cursor.fetchone()
-    if forum is not None:
-        if ('related' in data) and (data['related'] == 'user'):
-            user_data = {'user': forum['user']}
-            forum['user'] = user.details(**user_data)
-    else:
-        forum = {}
-
     cursor.close()
     if close_db:
         db.close()
 
+    if forum is not None:
+        if ('related' in data) and (data['related'] == 'user'):
+            forum['user'] = user.details(**{'user': forum['user']})
+    else:
+        forum = {}
+
     if get_resp:
         if len(forum) == 0:
             str_err = "Forum '%s' not found" % data['forum']
-            response = response_error(Codes.not_found, str_err)
+            return response_error(Codes.not_found, str_err)
         else:
-            response = {
+            return {
                 'code': Codes.ok,
                 'response': forum
             }
-        return response
 
     return forum
 
@@ -121,11 +111,10 @@ def list_posts(**data):
                 thread_data = {'thread': one_post['thread']}
                 one_post['thread'] = thread.details(**thread_data)
 
-    response = {
+    return {
         'code': Codes.ok,
         'response': posts
     }
-    return response
 
 
 def list_users(**data):
@@ -136,17 +125,17 @@ def list_users(**data):
               ORDER BY Fr.followee SEPARATOR ' ') AS followers,
               GROUP_CONCAT(DISTINCT Fe.follower
               ORDER BY Fe.follower SEPARATOR ' ') AS following
-              FROM User LEFT JOIN Subscriptions
-              ON User.email = Subscriptions.user
+              FROM User INNER JOIN
+              (SELECT user FROM Post WHERE forum='%s' GROUP BY user) AS T ON User.email=T.user
+              LEFT JOIN Subscriptions
+              ON User.email=Subscriptions.user
               LEFT JOIN Followers AS Fr
-              ON User.email = Fr.follower
+              ON User.email=Fr.follower
               LEFT JOIN Followers AS Fe
-              ON User.email = Fe.followee
-              WHERE email IN
-              (SELECT user FROM Post WHERE forum = '%s') """ % data['forum']
+              ON User.email=Fe.followee """ % data['forum']
 
     if 'since_id' in data:
-        query += """AND id >= %s """ % data['since_id']
+        query += """WHERE id>=%s """ % data['since_id']
     query += "GROUP BY id "
 
     if 'order' in data:
@@ -209,12 +198,7 @@ def list_threads(**data):
     threads = thread.list_threads(**data)
 
     if len(threads) == 0:
-        # response = {
-        #    'code': Codes.not_found,
-        #    'response': 'Threads not found, forum short_name=%s' % data['forum']
-        #}
-        #return response
-        return response_error(Codes.ok, "")
+        return response_error(Codes.ok, '')
 
     elif 'related' in data:
         if 'user' in data['related']:
@@ -227,8 +211,7 @@ def list_threads(**data):
                 forum_data = {'forum': one_thread['forum']}
                 one_thread['forum'] = details(**forum_data)
 
-    response = {
+    return {
         'code': Codes.ok,
         'response': threads
     }
-    return response

@@ -99,7 +99,7 @@ def details(get_resp=False, **data):
     query = """SELECT id, title, slug, message, likes, dislikes,
               likes-dislikes AS points, isClosed, isDeleted,
               user, forum, posts, date
-              FROM Thread WHERE id = %s""" % data['thread']
+              FROM Thread WHERE id=%s""" % data['thread']
 
     db = dbService.connect()
     cursor = db.cursor()
@@ -208,14 +208,14 @@ def list_threads(get_resp=False, **data):
               FROM Thread WHERE """
 
     if 'user' in data:
-        query += "user = '%s' " % data['user']
+        query += "user='%s' " % data['user']
     elif 'forum' in data:
-        query += "forum = '%s' " % data['forum']
+        query += "forum='%s' " % data['forum']
     # else, по-идее, запрос не должен пройти семантически
     # Хотяя...
 
     if 'since' in data:
-        query += """AND date >= '%s' """ % data['since']
+        query += """AND date>='%s' """ % data['since']
 
     if 'order' in data:
         query += """ORDER BY date %s """ % data['order']
@@ -281,13 +281,13 @@ def subscribe(**data):
 
 
 def unsubscribe(**data):
-    query = "DELETE FROM Subscriptions WHERE user=%s AND thread=%s"
-    values = (data['user'], data['thread'])
+    query = """DELETE FROM Subscriptions
+            WHERE user='%s' AND thread=%s""" % (data['user'], data['thread'])
 
     db = dbService.connect()
     cursor = db.cursor()
     try:
-        cursor.execute(query, values)
+        cursor.execute(query)
         db.commit()
     except MySQLdb.Error as e:
         db.rollback()
@@ -309,8 +309,7 @@ def unsubscribe(**data):
 
 
 def update(**data):
-    query = """UPDATE Thread SET message = %s, slug = %s
-                WHERE id = %s"""
+    query = "UPDATE Thread SET message=%s, slug=%s WHERE id=%s"
     values = (data['message'], data['slug'], data['thread'])
 
     db = dbService.connect()
@@ -320,7 +319,6 @@ def update(**data):
         db.commit()
     except MySQLdb.Error as e:
         db.rollback()
-        # А какие тут ошибки могут быть?
         return response_error(Codes.unknown_error, err=e)
     finally:
         cursor.close()
@@ -347,7 +345,7 @@ def remove(**data):
     except Exception as e:
         return response_error(Codes.unknown_error, e)
 
-    query = """UPDATE Thread SET isDeleted=1 WHERE id=%s""" % data['thread']
+    query = "UPDATE Thread SET isDeleted=1 WHERE id=%s" % data['thread']
 
     db = dbService.connect()
     cursor = db.cursor()
@@ -459,12 +457,12 @@ def list_posts(get_resp=False, **data):
         else:
             raise e
 
-    query = """SELECT date, dislikes, forum, id, isApproved, isDeleted, isEdited, isHighlighted,\
-                isSpam, likes, message, parent, likes-dislikes AS points, thread, user \
-                FROM Post WHERE thread=%s """ % data['thread']
+    query = """SELECT date, dislikes, forum, id, isApproved, isDeleted, isEdited, isHighlighted,
+               isSpam, likes, message, parent, likes-dislikes AS points, thread, user
+               FROM Post WHERE thread=%s """ % data['thread']
 
     if 'since' in data:
-        query += """AND date >= '%s' """ % data['since']
+        query += """AND date>='%s' """ % data['since']
     if 'order' in data:
         query += """ORDER BY date %s """ % data['order']
     else:
@@ -477,6 +475,8 @@ def list_posts(get_resp=False, **data):
     cursor = db.cursor()
     cursor.execute(query)
     posts = cursor.fetchall()
+    cursor.close()
+    db.close()
 
     for post_data in posts:
         if post_data['id'] is not None:

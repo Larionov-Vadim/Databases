@@ -14,7 +14,7 @@ import thread
 def create(**data):
     query = """INSERT INTO Post(message, isApproved, isDeleted,
                 isEdited, isHighlighted, isSpam, date, parent,
-                 forum, thread, user)
+                forum, thread, user)
                 VALUES
                 (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"""
 
@@ -42,11 +42,9 @@ def create(**data):
     db = dbService.connect()
     cursor = db.cursor()
     try:
-        cursor.execute("START TRANSACTION")
         cursor.execute(query, values)
         data['id'] = cursor.lastrowid
         cursor.execute("UPDATE Thread SET posts=posts+1 WHERE id=%s" % data['thread'])
-        cursor.execute("COMMIT")
         db.commit()
 
     except MySQLdb.Error as e:
@@ -62,8 +60,6 @@ def create(**data):
         cursor.close()
         db.close()
 
-    if 'id' not in data:
-        print("FUUUU_ID")
     post = {
         'date': data['date'],
         'forum': data['forum'],
@@ -196,13 +192,12 @@ def restore(**data):
 
 
 def update(**data):
-    query = """UPDATE Post SET message = %s WHERE id = %s"""
-    values = (data['message'], data['post'])
+    query = "UPDATE Post SET message='%s' WHERE id=%s" % (data['message'], data['post'])
 
     db = dbService.connect()
     cursor = db.cursor()
     try:
-        cursor.execute(query, values)
+        cursor.execute(query)
         db.commit()
     except MySQLdb.Error as e:
         db.rollback()

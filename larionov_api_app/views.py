@@ -132,7 +132,7 @@ def thread_view(request, method):
 
 @csrf_exempt
 def post_view(request, method):
-    print("I am post_views!")
+    #print("I am post_views!")
     method = re.sub('/', '', method)
     func = {
         'create': post.create,      # response
@@ -149,8 +149,8 @@ def post_view(request, method):
     else:
         request_data = request.GET.dict()
 
-    print(request.method)
-    print("RequestData", request_data)
+    #print(request.method)
+    #print("RequestData", request_data)
 
     try:
         request_data = get_request_data(request)
@@ -170,7 +170,7 @@ def post_view(request, method):
             print("Exception: ", str(e))
             response = response_error(Codes.unknown_error, e)
 
-    print("RESPONSE_POST: ", response)
+    #print("RESPONSE_POST: ", response)
     return HttpResponse(json.dumps(response), content_type='application/json')
 
 
