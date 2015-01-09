@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 __author__ = 'vadim'
+# from contextlib import closing
+# from larionov_api_app.dbService import pool
+
 import MySQLdb
 from mysql.connector import errorcode
 from larionov_api_app import dbService
@@ -45,7 +48,8 @@ def create(**data):
     except MySQLdb.Error as e:
         db.rollback()
         if e[0] == errorcode.ER_DUP_ENTRY:
-            cursor.execute("SELECT * FROM Thread WHERE slug='%s'" % data['slug'])
+            params = (data['slug'], data['title'])
+            cursor.execute("SELECT * FROM Thread WHERE slug='%s' AND title='%s'", params)
             thread = cursor.fetchone()
             #thread['date'] = thread['date'].strftime("%Y-%m-%d %H:%M:%S")
             # Ok возвращать????
@@ -65,7 +69,7 @@ def create(**data):
 
     if 'id' not in data:
         print "id not in data"
-        
+
     if data['id'] is None:
         print "data['id'] is None :("
     thread = {
@@ -258,6 +262,7 @@ def list_threads(get_resp=False, **data):
 
 
 def subscribe(**data):
+    print "I'm subscribe"
     query = "INSERT INTO Subscriptions(user, thread) VALUES (%s, %s)"
     values = (data['user'], data['thread'])
 
@@ -276,6 +281,9 @@ def subscribe(**data):
         cursor.close()
         db.close()
 
+    print "yo!"
+    print data['thread']
+    print data['user']
     return {
         'code': Codes.ok,
         'response': {

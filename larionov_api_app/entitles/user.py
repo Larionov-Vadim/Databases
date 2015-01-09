@@ -46,6 +46,7 @@ def create(**data):
 
     finally:
         cursor.close()
+        #db1.close()
         db.close()
 
     user = {

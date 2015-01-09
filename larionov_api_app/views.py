@@ -10,7 +10,7 @@ from larionov_api_app import dbService
 from larionov_api_app.service import Codes
 from larionov_api_app.entitles import user, forum, thread, post
 from larionov_api_app.service import get_request_data, response_error
-
+import traceback
 
 @csrf_exempt
 def user_view(request, method):
@@ -45,6 +45,7 @@ def user_view(request, method):
     except Exception as e:
         if e:
             print("Exception in User: ", str(e))
+            print traceback.print_exc()
             response = response_error(Codes.unknown_error, e)
 
     #print("RESPONSE_USER: ", response)
@@ -79,6 +80,7 @@ def forum_view(request, method):
             response = func(get_resp=True, **request_data)
     except Exception as e:
         print("Exception in Forum: ", str(e))
+        print traceback.print_exc()
         response = response_error(Codes.unknown_error, e)
 
     #print("RESPONSE_FORUM: ", response)
@@ -124,9 +126,10 @@ def thread_view(request, method):
             response = func(**request_data)
     except Exception as e:
         print("Exception in Thread: ", str(e))
+        print traceback.print_exc()
         response = response_error(Codes.unknown_error, e)
 
-    #print("RESPONSE_THREAD: ", response)
+    #print(response['response'])
     return HttpResponse(json.dumps(response), content_type='application/json')
 
 
@@ -160,6 +163,7 @@ def post_view(request, method):
     except Exception as e:
         if e:
             print("Exception in Post: ", str(e))
+            print traceback.print_exc()
             response = response_error(Codes.unknown_error, e)
 
     #print("RESPONSE_POST: ", response)

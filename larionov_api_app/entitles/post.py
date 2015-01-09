@@ -93,6 +93,8 @@ def details(get_resp=False, **data):
     cursor = db.cursor()
     cursor.execute(query)
     post = cursor.fetchone()
+    cursor.close()
+    db.close()
 
     if post is None:
         post = {}

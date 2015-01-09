@@ -2,6 +2,18 @@
 __author__ = 'vadim'
 import MySQLdb
 import MySQLdb.cursors
+# from DBUtils.PooledDB import PooledDB
+# import mysql.connector
+
+# pool_size = 3
+# pool = PooledDB(mysql.connector, pool_size, database='forum_db', user='vadim', host='127.0.0.1', passwd='vadim', charset='utf8')
+
+# db1 = MySQLdb.connect(**{'host': 'localhost',
+#         'user': 'vadim',
+#         'passwd': 'vadim',
+#         'db': 'forum_db',
+#         'charset': 'utf8',
+#         'cursorclass': MySQLdb.cursors.SSDictCursor})
 
 
 def connect():
