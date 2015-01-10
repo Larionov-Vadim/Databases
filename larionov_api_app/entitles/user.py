@@ -1,8 +1,13 @@
 # -*- coding: utf-8 -*-
 __author__ = 'vadim'
-import MySQLdb
+from larionov_api_app.dbService import cnxpool
+from contextlib import closing
+import mysql.connector
+from mysql.connector import Error as MysqlException
+
+# import MySQLdb
+# from larionov_api_app import dbService
 from mysql.connector import errorcode
-from larionov_api_app import dbService
 from larionov_api_app.service import Codes
 from larionov_api_app.service import response_error
 from larionov_api_app.service import check_optional_params, check_required_params
@@ -26,28 +31,23 @@ def create(**data):
               data['about'],
               bool(data['isAnonymous']))
 
-    db = dbService.connect()
-    cursor = db.cursor()
-    try:
-        cursor.execute(query, values)
-        data['id'] = cursor.lastrowid
-        db.commit()
+    with closing(cnxpool.get_connection()) as db:
+        with closing(db.cursor(dictionary=True)) as cursor:
+            try:
+                cursor.execute(query, values)
+                data['id'] = cursor.lastrowid
+                db.commit()
 
-    except MySQLdb.Error as e:
-        db.rollback()
-        if e[0] == errorcode.ER_DUP_ENTRY:
-            return response_error(Codes.user_exists, e)
-
-        elif e[0] == errorcode.ER_PARSE_ERROR:
-            return response_error(Codes.incorrect_query, e)
-
-        else:
-            return response_error(Codes.unknown_error, e)
-
-    finally:
-        cursor.close()
-        #db1.close()
-        db.close()
+            except MysqlException as e:
+                print "Type Exception:" + str(type(e))
+                print str(e[0])
+                db.rollback()
+                if e[0] == errorcode.ER_DUP_ENTRY:
+                    return response_error(Codes.user_exists, e)
+                elif e[0] == errorcode.ER_PARSE_ERROR:
+                    return response_error(Codes.incorrect_query, e)
+                else:
+                    return response_error(Codes.unknown_error, e)
 
     user = {
         'about': data['about'],
@@ -80,12 +80,10 @@ def details(get_resp=False, **data):
               LEFT JOIN Followers AS Fe
               ON Usr.email=Fe.followee""" % data['user']
 
-    db = dbService.connect()
-    cursor = db.cursor()
-    cursor.execute(query)
-    user = cursor.fetchone()
-    cursor.close()
-    db.close()
+    with closing(cnxpool.get_connection()) as db:
+        with closing(db.cursor(dictionary=True)) as cursor:
+            cursor.execute(query)
+            user = cursor.fetchone()
 
     if user['email'] is None or len(user) == 0:
         user = {}
@@ -134,23 +132,19 @@ def follow(**data):
     query = """INSERT INTO Followers(follower, followee)
                VALUES ('%s', '%s')""" % (data['followee'], data['follower'])
 
-    db = dbService.connect()
-    cursor = db.cursor()
-    try:
-        cursor.execute(query)
-        db.commit()
+    with closing(cnxpool.get_connection()) as db:
+        with closing(db.cursor(dictionary=True)) as cursor:
+            try:
+                cursor.execute(query)
+                db.commit()
 
-    except MySQLdb.Error as e:
-        # Если email не существует
-        #if e[0] == errorcode.ER_NO_REFERENCED_ROW_2:
-        if e[0] == errorcode.ER_PARSE_ERROR:
-            return response_error(Codes.incorrect_query, e)
-        else:
-            return response_error(Codes.unknown_error, e)
-
-    finally:
-        cursor.close()
-        db.close()
+            except mysql.connector.Error as e:
+                # Если email не существует
+                #if e[0] == errorcode.ER_NO_REFERENCED_ROW_2:
+                if e[0] == errorcode.ER_PARSE_ERROR:
+                    return response_error(Codes.incorrect_query, e)
+                else:
+                    return response_error(Codes.unknown_error, e)
 
     user = details(**{'user': data['follower']})
     return {
@@ -165,21 +159,17 @@ def unfollow(**data):
     # Тут всё верно
     values = (data['followee'], data['follower'])
 
-    db = dbService.connect()
-    cursor = db.cursor()
-    try:
-        cursor.execute(query, values)
-        db.commit()
+    with closing(cnxpool.get_connection()) as db:
+        with closing(db.cursor(dictionary=True)) as cursor:
+            try:
+                cursor.execute(query, values)
+                db.commit()
 
-    except MySQLdb.Error as e:
-        if e[0] == errorcode.ER_PARSE_ERROR:
-            return response_error(Codes.incorrect_query, e)
-        else:
-            return response_error(Codes.unknown_error, e)
-
-    finally:
-        cursor.close()
-        db.close()
+            except mysql.connector.Error as e:
+                if e[0] == errorcode.ER_PARSE_ERROR:
+                    return response_error(Codes.incorrect_query, e)
+                else:
+                    return response_error(Codes.unknown_error, e)
 
     user = details(**{"user": data['follower']})
     return {
@@ -192,18 +182,14 @@ def update_profile(**data):
     query = "UPDATE User SET name=%s, about=%s WHERE email=%s"
     values = (data['name'], data['about'], data['user'])
 
-    db = dbService.connect()
-    cursor = db.cursor()
-    try:
-        cursor.execute(query, values)
-        db.commit()
+    with closing(cnxpool.get_connection()) as db:
+        with closing(db.cursor(dictionary=True)) as cursor:
+            try:
+                cursor.execute(query, values)
+                db.commit()
 
-    except MySQLdb.Error as e:
-        return response_error(Codes.unknown_error, e)
-
-    finally:
-        cursor.close()
-        db.close()
+            except mysql.connector.Error as e:
+                return response_error(Codes.unknown_error, e)
 
     user = details(**{'user': data['user']})
     return {
@@ -230,22 +216,16 @@ def list_followers(**data):
     if 'limit' in data:
         query += """LIMIT %s """ % data['limit']
 
-    db = dbService.connect()
-    cursor = db.cursor()
-    try:
-        cursor.execute(query)
+    with closing(cnxpool.get_connection()) as db:
+        with closing(db.cursor(dictionary=True)) as cursor:
+            try:
+                cursor.execute(query)
+                followers = cursor.fetchall()
 
-    except MySQLdb.Error as e:
-        cursor.close()
-        db.close()
-        return response_error(Codes.unknown_error, e)
+            except mysql.connector.Error as e:
+                return response_error(Codes.unknown_error, e)
 
-    followers = cursor.fetchall()
     ret = list()
-
-    cursor.close()
-    db.close()
-
     if followers is not None:
         for user in followers:
             ret.append(details(**{"user": user['user']}))
@@ -273,17 +253,14 @@ def list_following(**data):
     if 'limit' in data:
         query += """LIMIT %s """ % data['limit']
 
-    db = dbService.connect()
-    cursor = db.cursor()
-    try:
-        cursor.execute(query)
+    with closing(cnxpool.get_connection()) as db:
+        with closing(db.cursor(dictionary=True)) as cursor:
+            try:
+                cursor.execute(query)
+                following = cursor.fetchall()
 
-    except MySQLdb.Error as e:
-        cursor.close()
-        db.close()
-        return response_error(Codes.unknown_error, e)
-
-    following = cursor.fetchall()
+            except mysql.connector.Error as e:
+                return response_error(Codes.unknown_error, e)
 
     ret = list()
     if following is not None:
@@ -291,8 +268,6 @@ def list_following(**data):
             user_data = {"user": user['user']}
             ret.append(details(**user_data))
 
-    cursor.close()
-    db.close()
     return {
         'code': Codes.ok,
         'response': ret
@@ -316,17 +291,15 @@ def list_posts(**data):
     if 'limit' in data:
         query += """LIMIT %s """ % data['limit']
 
-    db = dbService.connect()
-    cursor = db.cursor()
-    try:
-        cursor.execute(query)
+    with closing(cnxpool.get_connection()) as db:
+        with closing(db.cursor(dictionary=True)) as cursor:
+            try:
+                cursor.execute(query)
+                posts = cursor.fetchall()
 
-    except MySQLdb.Error as e:
-        cursor.close()
-        db.close()
-        return response_error(Codes.unknown_error, e)
+            except mysql.connector.Error as e:
+                return response_error(Codes.unknown_error, e)
 
-    posts = cursor.fetchall()
     ret = list()
     for post in posts:
         #post['date'] = post['date'].strftime("%Y-%m-%d %H:%M:%S")
@@ -337,8 +310,6 @@ def list_posts(**data):
         post['isSpam'] = bool(post['isSpam'])
         ret.append(post)
 
-    cursor.close()
-    db.close()
     return {
         'code': Codes.ok,
         'response': ret

@@ -1,9 +1,13 @@
 # -*- coding: utf-8 -*-
 __author__ = 'vadim'
-import MySQLdb
+from larionov_api_app.dbService import cnxpool
+from contextlib import closing
+from mysql.connector import Error as MysqlException
+
+# import MySQLdb
+# from larionov_api_app import dbService
 from mysql.connector import errorcode
 from larionov_api_app.service import Codes, response_error, check_required_params
-from larionov_api_app import dbService
 import user
 import post
 import thread
@@ -19,29 +23,25 @@ def create(**data):
     query = "INSERT INTO Forum(name, short_name, user) VALUES (%s, %s, %s)"
     values = (data['name'], data['short_name'], data['user'])
 
-    db = dbService.connect()
-    cursor = db.cursor()
-    try:
-        cursor.execute(query, values)
-        data['id'] = cursor.lastrowid
-        db.commit()
+    with closing(cnxpool.get_connection()) as db:
+        with closing(db.cursor(dictionary=True)) as cursor:
+            try:
+                cursor.execute(query, values)
+                data['id'] = cursor.lastrowid
+                db.commit()
 
-    except MySQLdb.Error as e:
-        db.rollback()
-        if e[0] == errorcode.ER_DUP_ENTRY:
-            forum = details(db=db, close_db=False, **{'forum': data['short_name']})
-            # Ok возвращать????
-            return response_error(Codes.ok, forum)
+            except MysqlException as e:
+                db.rollback()
+                if e[0] == errorcode.ER_DUP_ENTRY:
+                    forum = details(db=db, close_db=False)
+                    # Ok возвращать????
+                    return response_error(Codes.ok, forum)
 
-        elif e[0] == errorcode.ER_PARSE_ERROR:
-            return response_error(Codes.incorrect_query, e)
+                elif e[0] == errorcode.ER_PARSE_ERROR:
+                    return response_error(Codes.incorrect_query, e)
 
-        else:
-            return response_error(Codes.unknown_error, e)
-
-    finally:
-        cursor.close()
-        db.close()
+                else:
+                    return response_error(Codes.unknown_error, e)
 
     forum = {
         'id': data['id'],
@@ -55,18 +55,13 @@ def create(**data):
     }
 
 
-def details(get_resp=False, db=0, close_db=True, **data):
-    query = "SELECT id, name, short_name, user FROM Forum WHERE short_name=%s"
-    values = (data['forum'])
+def details(get_resp=False, **data):
+    query = "SELECT id, name, short_name, user FROM Forum WHERE short_name='%s'"
 
-    if db == 0:
-        db = dbService.connect()
-    cursor = db.cursor()
-    cursor.execute(query, values)
-    forum = cursor.fetchone()
-    cursor.close()
-    if close_db:
-        db.close()
+    with closing(cnxpool.get_connection()) as db:
+        with closing(db.cursor(dictionary=True)) as cursor:
+            cursor.execute(query % data['forum'])
+            forum = cursor.fetchone()
 
     if forum is not None:
         if ('related' in data) and (data['related'] == 'user'):
@@ -146,12 +141,13 @@ def list_users(**data):
     if 'limit' in data:
         query += """LIMIT %s """ % data['limit']
 
-    db = dbService.connect()
-    cursor = db.cursor()
-    cursor.execute(query)
-    users = cursor.fetchall()
-    cursor.close()
-    db.close()
+    with closing(cnxpool.get_connection()) as db:
+        with closing(db.cursor(dictionary=True)) as cursor:
+            try:
+                cursor.execute(query)
+                users = cursor.fetchall()
+            except MysqlException as e:
+                response_error(Codes.unknown_error, e)
 
     for user_data in users:
         if user_data['email'] is not None:

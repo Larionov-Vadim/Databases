@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 __author__ = 'vadim'
-# from contextlib import closing
-# from larionov_api_app.dbService import pool
+from larionov_api_app.dbService import cnxpool
+from contextlib import closing
+from mysql.connector import Error as MysqlException
 
 import MySQLdb
 from mysql.connector import errorcode
@@ -38,42 +39,31 @@ def create(**data):
         data['user']
     )
 
-    db = dbService.connect()
-    cursor = db.cursor()
-    try:
-        cursor.execute(query, values)
-        data['id'] = cursor.lastrowid
-        db.commit()
+    with closing(cnxpool.get_connection()) as db:
+        with closing(db.cursor(dictionary=True)) as cursor:
+            try:
+                cursor.execute(query, values)
+                data['id'] = cursor.lastrowid
+                db.commit()
 
-    except MySQLdb.Error as e:
-        db.rollback()
-        print "CHECK"
-        print str(e)
-        if e[0] == errorcode.ER_DUP_ENTRY:
-            params = (data['slug'], data['title'])
-            cursor.execute("SELECT * FROM Thread WHERE slug='%s' AND title='%s'", params)
-            thread = cursor.fetchone()
-            #thread['date'] = thread['date'].strftime("%Y-%m-%d %H:%M:%S")
-            # Ok возвращать????
-            return {
-                'code': Codes.ok,
-                'response': thread
-            }
-        elif e[0] == errorcode.ER_PARSE_ERROR:
-            return response_error(Codes.incorrect_query, e)
+            except MysqlException as e:
+                db.rollback()
+                if e[0] == errorcode.ER_DUP_ENTRY:
+                    params = (data['slug'], data['title'])
+                    cursor.execute("SELECT * FROM Thread WHERE slug='%s' AND title='%s'", params)
+                    thread = cursor.fetchone()
+                    #thread['date'] = thread['date'].strftime("%Y-%m-%d %H:%M:%S")
+                    # Ok возвращать????
+                    return {
+                        'code': Codes.ok,
+                        'response': thread
+                    }
+                elif e[0] == errorcode.ER_PARSE_ERROR:
+                    return response_error(Codes.incorrect_query, e)
 
-        else:
-            return response_error(Codes.unknown_error, e)
+                else:
+                    return response_error(Codes.unknown_error, e)
 
-    finally:
-        cursor.close()
-        db.close()
-
-    if 'id' not in data:
-        print "id not in data"
-
-    if data['id'] is None:
-        print "data['id'] is None :("
     thread = {
         'date': data['date'],
         'forum': data['forum'],
@@ -98,8 +88,7 @@ def details(get_resp=False, **data):
     except Exception as e:
         if get_resp:
             return response_error(Codes.unknown_error, str(e))
-        else:
-            raise e
+        raise e
 
     # check optional params
     if 'related' in data:
@@ -112,19 +101,16 @@ def details(get_resp=False, **data):
               user, forum, posts, date
               FROM Thread WHERE id=%s""" % data['thread']
 
-    db = dbService.connect()
-    cursor = db.cursor()
-    try:
-        cursor.execute(query)
-        thread = cursor.fetchone()
-    except MySQLdb.Error as e:
-        if e[0] == errorcode.ER_PARSE_ERROR:
-            return response_error(Codes.incorrect_query, e)
-        else:
-            return response_error(Codes.unknown_error, e)
-    finally:
-        cursor.close()
-        db.close()
+    with closing(cnxpool.get_connection()) as db:
+        with closing(db.cursor(dictionary=True)) as cursor:
+            try:
+                cursor.execute(query)
+                thread = cursor.fetchone()
+            except MysqlException as e:
+                if e[0] == errorcode.ER_PARSE_ERROR:
+                    return response_error(Codes.incorrect_query, e)
+                else:
+                    return response_error(Codes.unknown_error, e)
 
     if thread is None:
         return response_error(Codes.not_found, "Thread with id=%s not found" % data['thread'])
@@ -161,21 +147,17 @@ def details(get_resp=False, **data):
 def close(**data):
     query = "UPDATE Thread SET isClosed=1 WHERE id=%s" % data['thread']
 
-    db = dbService.connect()
-    cursor = db.cursor()
-    try:
-        cursor.execute(query)
-        db.commit()
-    except MySQLdb.Error as e:
-        db.rollback()
-        if e[0] == errorcode.ER_PARSE_ERROR:
-            return response_error(Codes.incorrect_query, e)
-        else:
-            return response_error(Codes.unknown_error, e)
-
-    finally:
-        cursor.close()
-        db.close()
+    with closing(cnxpool.get_connection()) as db:
+        with closing(db.cursor(dictionary=True)) as cursor:
+            try:
+                cursor.execute(query)
+                db.commit()
+            except MysqlException as e:
+                db.rollback()
+                if e[0] == errorcode.ER_PARSE_ERROR:
+                    return response_error(Codes.incorrect_query, e)
+                else:
+                    return response_error(Codes.unknown_error, e)
 
     return {
         'code': Codes.ok,
@@ -188,21 +170,17 @@ def close(**data):
 def open(**data):
     query = "UPDATE Thread SET isClosed=0 WHERE id=%s" % data['thread']
 
-    db = dbService.connect()
-    cursor = db.cursor()
-    try:
-        cursor.execute(query)
-        db.commit()
-    except MySQLdb.Error as e:
-        db.rollback()
-        if e[0] == errorcode.ER_PARSE_ERROR:
-            return response_error(Codes.incorrect_query, e)
-        else:
-            return response_error(Codes.unknown_error, e)
-
-    finally:
-        cursor.close()
-        db.close()
+    with closing(cnxpool.get_connection()) as db:
+        with closing(db.cursor(dictionary=True)) as cursor:
+            try:
+                cursor.execute(query)
+                db.commit()
+            except MysqlException as e:
+                db.rollback()
+                if e[0] == errorcode.ER_PARSE_ERROR:
+                    return response_error(Codes.incorrect_query, e)
+                else:
+                    return response_error(Codes.unknown_error, e)
 
     return {
         'code': Codes.ok,
@@ -236,10 +214,15 @@ def list_threads(get_resp=False, **data):
     if 'limit' in data:
         query += """LIMIT %s """ % data['limit']
 
-    db = dbService.connect()
-    cursor = db.cursor()
-    cursor.execute(query)
-    threads = cursor.fetchall()
+    with closing(cnxpool.get_connection()) as db:
+        with closing(db.cursor(dictionary=True)) as cursor:
+            try:
+                cursor.execute(query)
+                threads = cursor.fetchall()
+            except MysqlException as e:
+                if get_resp:
+                    return response_error(Codes.unknown_error, e)
+                raise e
 
     for thread_data in threads:
         if thread_data['title'] is not None:
@@ -267,20 +250,17 @@ def subscribe(**data):
     query = "INSERT INTO Subscriptions(user, thread) VALUES (%s, %s)"
     values = (data['user'], data['thread'])
 
-    db = dbService.connect()
-    cursor = db.cursor()
-    try:
-        cursor.execute(query, values)
-        db.commit()
-    except MySQLdb.Error as e:
-        db.rollback()
-        if e[0] == errorcode.ER_PARSE_ERROR:
-            return response_error(Codes.incorrect_query, e)
-        else:
-            return response_error(Codes.unknown_error, e)
-    finally:
-        cursor.close()
-        db.close()
+    with closing(cnxpool.get_connection()) as db:
+        with closing(db.cursor(dictionary=True)) as cursor:
+            try:
+                cursor.execute(query, values)
+                db.commit()
+            except MysqlException as e:
+                db.rollback()
+                if e[0] == errorcode.ER_PARSE_ERROR:
+                    return response_error(Codes.incorrect_query, e)
+                else:
+                    return response_error(Codes.unknown_error, e)
 
     return {
         'code': Codes.ok,
@@ -295,20 +275,17 @@ def unsubscribe(**data):
     query = """DELETE FROM Subscriptions
             WHERE user='%s' AND thread=%s""" % (data['user'], data['thread'])
 
-    db = dbService.connect()
-    cursor = db.cursor()
-    try:
-        cursor.execute(query)
-        db.commit()
-    except MySQLdb.Error as e:
-        db.rollback()
-        if e[0] == errorcode.ER_PARSE_ERROR:
-            return response_error(Codes.incorrect_query, e)
-        else:
-            return response_error(Codes.unknown_error, e)
-    finally:
-        cursor.close()
-        db.close()
+    with closing(cnxpool.get_connection()) as db:
+        with closing(db.cursor(dictionary=True)) as cursor:
+            try:
+                cursor.execute(query)
+                db.commit()
+            except MysqlException as e:
+                db.rollback()
+                if e[0] == errorcode.ER_PARSE_ERROR:
+                    return response_error(Codes.incorrect_query, e)
+                else:
+                    return response_error(Codes.unknown_error, e)
 
     return {
         'code': Codes.ok,
@@ -323,17 +300,14 @@ def update(**data):
     query = "UPDATE Thread SET message=%s, slug=%s WHERE id=%s"
     values = (data['message'], data['slug'], data['thread'])
 
-    db = dbService.connect()
-    cursor = db.cursor()
-    try:
-        cursor.execute(query, values)
-        db.commit()
-    except MySQLdb.Error as e:
-        db.rollback()
-        return response_error(Codes.unknown_error, err=e)
-    finally:
-        cursor.close()
-        db.close()
+    with closing(cnxpool.get_connection()) as db:
+        with closing(db.cursor(dictionary=True)) as cursor:
+            try:
+                cursor.execute(query, values)
+                db.commit()
+            except MySQLdb.Error as e:
+                db.rollback()
+                return response_error(Codes.unknown_error, err=e)
 
     thread = details(**{'thread': data['thread']})
     if len(thread) == 0:
@@ -358,23 +332,19 @@ def remove(**data):
 
     query = "UPDATE Thread SET isDeleted=1 WHERE id=%s" % data['thread']
 
-    db = dbService.connect()
-    cursor = db.cursor()
-    try:
-        cursor.execute(query)
-        cursor.execute("UPDATE Post SET isDeleted=1 WHERE thread=%s" % data['thread'])
-        cursor.execute("UPDATE Thread SET posts=0 WHERE id=%s" % data['thread'])
-        db.commit()
-    except MySQLdb.Error as e:
-        db.rollback()
-        if e[0] == errorcode.ER_PARSE_ERROR:
-            return response_error(Codes.incorrect_query, e)
-        else:
-            return response_error(Codes.unknown_error, e)
-
-    finally:
-        cursor.close()
-        db.close()
+    with closing(cnxpool.get_connection()) as db:
+        with closing(db.cursor(dictionary=True)) as cursor:
+            try:
+                cursor.execute(query)
+                cursor.execute("UPDATE Post SET isDeleted=1 WHERE thread=%s" % data['thread'])
+                cursor.execute("UPDATE Thread SET posts=0 WHERE id=%s" % data['thread'])
+                db.commit()
+            except MySQLdb.Error as e:
+                db.rollback()
+                if e[0] == errorcode.ER_PARSE_ERROR:
+                    return response_error(Codes.incorrect_query, e)
+                else:
+                    return response_error(Codes.unknown_error, e)
 
     # А если нет thread-а с таким id, то что возвращать?
     return {
@@ -432,20 +402,17 @@ def vote(**data):
             'response': "Not enough parameters or have uncorrected parameters"
         }
 
-    db = dbService.connect()
-    cursor = db.cursor()
-    try:
-        cursor.execute(query)
-        db.commit()
-    except MySQLdb.Error as e:
-        db.rollback()
-        if e[0] == errorcode.ER_PARSE_ERROR:
-            return response_error(Codes.incorrect_query, e)
-        else:
-            return response_error(Codes.unknown_error, e)
-    finally:
-        cursor.close()
-        db.close()
+    with closing(cnxpool.get_connection()) as db:
+        with closing(db.cursor(dictionary=True)) as cursor:
+            try:
+                cursor.execute(query)
+                db.commit()
+            except MySQLdb.Error as e:
+                db.rollback()
+                if e[0] == errorcode.ER_PARSE_ERROR:
+                    return response_error(Codes.incorrect_query, e)
+                else:
+                    return response_error(Codes.unknown_error, e)
 
     thread = details(**{'thread': data['thread']})
     if len(thread) != 0:
@@ -482,12 +449,15 @@ def list_posts(get_resp=False, **data):
     if 'limit' in data:
         query += """LIMIT %s """ % data['limit']
 
-    db = dbService.connect()
-    cursor = db.cursor()
-    cursor.execute(query)
-    posts = cursor.fetchall()
-    cursor.close()
-    db.close()
+    with closing(cnxpool.get_connection()) as db:
+        with closing(db.cursor(dictionary=True)) as cursor:
+            try:
+                cursor.execute(query)
+                posts = cursor.fetchall()
+            except MysqlException as e:
+                if get_resp:
+                    return response_error(Codes.unknown_error, e)
+                raise e
 
     for post_data in posts:
         if post_data['id'] is not None:

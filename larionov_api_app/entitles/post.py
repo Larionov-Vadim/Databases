@@ -1,8 +1,12 @@
 # -*- coding: utf-8 -*-
 __author__ = 'vadim'
-import MySQLdb
+from larionov_api_app.dbService import cnxpool
+from contextlib import closing
+from mysql.connector import Error as MysqlException
+
+# import MySQLdb
+# from larionov_api_app import dbService
 from mysql.connector import errorcode
-from larionov_api_app import dbService
 from larionov_api_app.service import response_error
 from larionov_api_app.service import Codes
 from larionov_api_app.service import check_optional_params, check_required_params
@@ -39,26 +43,21 @@ def create(**data):
         data['user']
     )
 
-    db = dbService.connect()
-    cursor = db.cursor()
-    try:
-        cursor.execute(query, values)
-        data['id'] = cursor.lastrowid
-        cursor.execute("UPDATE Thread SET posts=posts+1 WHERE id=%s" % data['thread'])
-        db.commit()
+    with closing(cnxpool.get_connection()) as db:
+        with closing(db.cursor(dictionary=True)) as cursor:
+            try:
+                cursor.execute(query, values)
+                data['id'] = cursor.lastrowid
+                cursor.execute("UPDATE Thread SET posts=posts+1 WHERE id=%s" % data['thread'])
+                db.commit()
 
-    except MySQLdb.Error as e:
-        db.rollback()
-        # Посты не уникальны
-        if e[0] == errorcode.ER_PARSE_ERROR:
-            return response_error(Codes.incorrect_query, e)
-
-        else:
-            return response_error(Codes.unknown_error, e)
-
-    finally:
-        cursor.close()
-        db.close()
+            except MysqlException as e:
+                db.rollback()
+                # Посты не уникальны
+                if e[0] == errorcode.ER_PARSE_ERROR:
+                    return response_error(Codes.incorrect_query, e)
+                else:
+                    return response_error(Codes.unknown_error, e)
 
     post = {
         'date': data['date'],
@@ -89,12 +88,15 @@ def details(get_resp=False, **data):
               thread, user
               FROM Post WHERE id = %s""" % data['post']
 
-    db = dbService.connect()
-    cursor = db.cursor()
-    cursor.execute(query)
-    post = cursor.fetchone()
-    cursor.close()
-    db.close()
+    with closing(cnxpool.get_connection()) as db:
+        with closing(db.cursor(dictionary=True)) as cursor:
+            try:
+                cursor.execute(query)
+                post = cursor.fetchone()
+            except MysqlException as e:
+                if get_resp:
+                    return response_error(Codes.unknown_error, e)
+                raise e
 
     if post is None:
         post = {}
@@ -136,23 +138,20 @@ def details(get_resp=False, **data):
 def remove(**data):
     query = "UPDATE Post SET isDeleted=1 WHERE id=%s " % data['post']
 
-    db = dbService.connect()
-    cursor = db.cursor()
-    try:
-        cursor.execute(query)
-        query_upd = """UPDATE Thread SET posts=posts-1
-                       WHERE id=(SELECT thread FROM Post WHERE id=%s) """ % data['post']
-        cursor.execute(query_upd)
-        db.commit()
-    except MySQLdb.Error as e:
-        db.rollback()
-        if e[0] == errorcode.ER_PARSE_ERROR:
-            return response_error(Codes.incorrect_query, e)
-        else:
-            return response_error(Codes.unknown_error, e)
-    finally:
-        cursor.close()
-        db.close()
+    with closing(cnxpool.get_connection()) as db:
+        with closing(db.cursor(dictionary=True)) as cursor:
+            try:
+                cursor.execute(query)
+                query_upd = """UPDATE Thread SET posts=posts-1
+                               WHERE id=(SELECT thread FROM Post WHERE id=%s) """ % data['post']
+                cursor.execute(query_upd)
+                db.commit()
+            except MysqlException as e:
+                db.rollback()
+                if e[0] == errorcode.ER_PARSE_ERROR:
+                    return response_error(Codes.incorrect_query, e)
+                else:
+                    return response_error(Codes.unknown_error, e)
 
     # А если нет post-а с таким id?
     return {
@@ -166,23 +165,20 @@ def remove(**data):
 def restore(**data):
     query = """UPDATE Post SET isDeleted=0 WHERE id=%s """ % data['post']
 
-    db = dbService.connect()
-    cursor = db.cursor()
-    try:
-        cursor.execute(query)
-        query_upd = """UPDATE Thread SET posts=posts+1
-                       WHERE id=(SELECT thread FROM Post WHERE id=%s) """ % data['post']
-        cursor.execute(query_upd)
-        db.commit()
-    except MySQLdb.Error as e:
-        db.rollback()
-        if e[0] == errorcode.ER_PARSE_ERROR:
-            return response_error(Codes.incorrect_query, e)
-        else:
-            return response_error(Codes.unknown_error, e)
-    finally:
-        cursor.close()
-        db.close()
+    with closing(cnxpool.get_connection()) as db:
+        with closing(db.cursor(dictionary=True)) as cursor:
+            try:
+                cursor.execute(query)
+                query_upd = """UPDATE Thread SET posts=posts+1
+                               WHERE id=(SELECT thread FROM Post WHERE id=%s) """ % data['post']
+                cursor.execute(query_upd)
+                db.commit()
+            except MysqlException as e:
+                db.rollback()
+                if e[0] == errorcode.ER_PARSE_ERROR:
+                    return response_error(Codes.incorrect_query, e)
+                else:
+                    return response_error(Codes.unknown_error, e)
 
     # А если нет post-а с таким id?
     return {
@@ -196,18 +192,14 @@ def restore(**data):
 def update(**data):
     query = "UPDATE Post SET message='%s' WHERE id=%s" % (data['message'], data['post'])
 
-    db = dbService.connect()
-    cursor = db.cursor()
-    try:
-        cursor.execute(query)
-        db.commit()
-    except MySQLdb.Error as e:
-        db.rollback()
-        # А какие тут ошибки могут быть?
-        return response_error(Codes.unknown_error, err=e)
-    finally:
-        cursor.close()
-        db.close()
+    with closing(cnxpool.get_connection()) as db:
+        with closing(db.cursor(dictionary=True)) as cursor:
+            try:
+                cursor.execute(query)
+                db.commit()
+            except MysqlException as e:
+                db.rollback()
+                return response_error(Codes.unknown_error, err=e)
 
     post = details(**{'post': data['post']})
     if len(post) != 0:
@@ -235,20 +227,17 @@ def vote(**data):
             'response': 'Not enough parameters or have incorrect parameter'
         }
 
-    db = dbService.connect()
-    cursor = db.cursor()
-    try:
-        cursor.execute(query)
-        db.commit()
-    except MySQLdb.Error as e:
-        db.rollback()
-        if e[0] == errorcode.ER_PARSE_ERROR:
-            return response_error(Codes.incorrect_query, e)
-        else:
-            return response_error(Codes.unknown_error, e)
-    finally:
-        cursor.close()
-        db.close()
+    with closing(cnxpool.get_connection()) as db:
+        with closing(db.cursor(dictionary=True)) as cursor:
+            try:
+                cursor.execute(query)
+                db.commit()
+            except MysqlException as e:
+                db.rollback()
+                if e[0] == errorcode.ER_PARSE_ERROR:
+                    return response_error(Codes.incorrect_query, e)
+                else:
+                    return response_error(Codes.unknown_error, e)
 
     post = details(**{'post': data['post']})
     if len(post) == 0:
@@ -287,14 +276,15 @@ def list_posts(get_resp=False, **data):
     if 'limit' in data:
         query += """LIMIT %s """ % data['limit']
 
-    db = dbService.connect()
-    cursor = db.cursor()
-
-    cursor.execute(query)
-    posts = cursor.fetchall()
-
-    cursor.close()
-    db.close()
+    with closing(cnxpool.get_connection()) as db:
+        with closing(db.cursor(dictionary=True)) as cursor:
+            try:
+                cursor.execute(query)
+                posts = cursor.fetchall()
+            except MysqlException as e:
+                if get_resp:
+                    return response_error(Codes.unknown_error, e)
+                raise e
 
     ret_posts = list()
     for pst in posts:
