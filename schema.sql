@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS User (
 	about TEXT,
 	isAnonymous TINYINT(1) NOT NULL DEFAULT '0',
 	PRIMARY KEY(email),
-	UNIQUE KEY id_unuque(id)
+	UNIQUE KEY id_unique (id),
+	INDEX idx_email_id (email, id)
 	)
 	ENGINE=InnoDB
 	DEFAULT CHARACTER SET='utf8';
@@ -59,7 +60,6 @@ CREATE TABLE IF NOT EXISTS Thread (
 	user VARCHAR(70) NOT NULL,
 	posts INT NOT NULL DEFAULT '0',
 	PRIMARY KEY(id),
-	UNIQUE KEY slug_title_unique (slug, title),
 	INDEX idxThr_usr_date (user, date(10)),
 	INDEX idxThr_forum_date (forum, date(10)),
 	FOREIGN KEY(forum) REFERENCES Forum(short_name) ON UPDATE CASCADE ON DELETE NO ACTION,
@@ -69,6 +69,7 @@ CREATE TABLE IF NOT EXISTS Thread (
 	DEFAULT CHARACTER SET = 'utf8';
 
 
+-- UNIQUE KEY slug_title_unique (slug, title),
 -- key: user,date DESC
 -- key: forum, date DESC
 

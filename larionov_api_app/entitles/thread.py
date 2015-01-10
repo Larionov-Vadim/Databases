@@ -47,6 +47,8 @@ def create(**data):
 
     except MySQLdb.Error as e:
         db.rollback()
+        print "CHECK"
+        print str(e)
         if e[0] == errorcode.ER_DUP_ENTRY:
             params = (data['slug'], data['title'])
             cursor.execute("SELECT * FROM Thread WHERE slug='%s' AND title='%s'", params)
@@ -262,7 +264,6 @@ def list_threads(get_resp=False, **data):
 
 
 def subscribe(**data):
-    print "I'm subscribe"
     query = "INSERT INTO Subscriptions(user, thread) VALUES (%s, %s)"
     values = (data['user'], data['thread'])
 
@@ -281,9 +282,6 @@ def subscribe(**data):
         cursor.close()
         db.close()
 
-    print "yo!"
-    print data['thread']
-    print data['user']
     return {
         'code': Codes.ok,
         'response': {
