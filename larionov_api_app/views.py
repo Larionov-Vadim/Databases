@@ -12,6 +12,7 @@ from larionov_api_app.entitles import user, forum, thread, post
 from larionov_api_app.service import get_request_data, response_error
 import traceback
 
+
 @csrf_exempt
 def user_view(request, method):
     #print("I am user_views!")
@@ -49,6 +50,9 @@ def user_view(request, method):
             response = response_error(Codes.unknown_error, e)
 
     #print("RESPONSE_USER: ", response)
+    if response['code'] != Codes.ok:
+        print "REQUEST_DATA: " + str(request_data)
+        print "RESPONSE: " + str(response)
     return HttpResponse(json.dumps(response), content_type='application/json')
 
 
@@ -83,6 +87,9 @@ def forum_view(request, method):
         print traceback.print_exc()
         response = response_error(Codes.unknown_error, e)
 
+    if response['code'] != Codes.ok:
+        print "REQUEST_DATA: " + str(request_data)
+        print "RESPONSE: " + str(response)
     #print("RESPONSE_FORUM: ", response)
     return HttpResponse(json.dumps(response), content_type='application/json')
 
@@ -129,6 +136,9 @@ def thread_view(request, method):
         print traceback.print_exc()
         response = response_error(Codes.unknown_error, e)
 
+    if response['code'] != Codes.ok:
+        print "REQUEST_DATA: " + str(request_data)
+        print "RESPONSE: " + str(response)
     #print(response['response'])
     return HttpResponse(json.dumps(response), content_type='application/json')
 
@@ -166,6 +176,9 @@ def post_view(request, method):
             print traceback.print_exc()
             response = response_error(Codes.unknown_error, e)
 
+    if response['code'] != Codes.ok:
+        print "REQUEST_DATA: " + str(request_data)
+        print "RESPONSE: " + str(response)
     #print("RESPONSE_POST: ", response)
     return HttpResponse(json.dumps(response), content_type='application/json')
 

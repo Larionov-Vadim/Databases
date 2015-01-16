@@ -48,6 +48,8 @@ def create(**data):
             try:
                 cursor.execute(query, values)
                 data['id'] = cursor.lastrowid
+                # Вот тут Deadlock
+                db.commit()
                 cursor.execute("UPDATE Thread SET posts=posts+1 WHERE id=%s" % data['thread'])
                 db.commit()
 
