@@ -27,7 +27,7 @@ settings_db = {
     'charset': 'utf8'
 }
 
-cnxpool = mysql.connector.pooling.MySQLConnectionPool(pool_size=10, **settings_db)
+cnxpool = mysql.connector.pooling.MySQLConnectionPool(pool_size=4, **settings_db)
 
 # Добавил тестовую базу данных
 def connect():
@@ -41,6 +41,15 @@ def connect():
     }
     db = MySQLdb.connect(**settings_db1)
     return db
+
+
+def execute(query, args=None):
+    with closing(cnxpool.get_connection()) as db:
+        with closing(db.cursor(dictionary=True)) as cursor:
+            cursor.execute(query, args)
+            result_list = cursor.fetchall()
+
+    return result_list
 
 
 def clear():

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = 'vadim'
-from larionov_api_app.dbService import cnxpool
+from larionov_api_app.dbService import cnxpool, execute
 from contextlib import closing
 import mysql.connector
 from mysql.connector import Error as MysqlException
@@ -11,6 +11,8 @@ from mysql.connector import errorcode
 from larionov_api_app.service import Codes
 from larionov_api_app.service import response_error
 from larionov_api_app.service import check_optional_params, check_required_params
+
+from larionov_api_app import get_lists
 
 
 def create(**data):
@@ -39,8 +41,6 @@ def create(**data):
                 db.commit()
 
             except MysqlException as e:
-                print "Type Exception:" + str(type(e))
-                print str(e[0])
                 db.rollback()
                 if e[0] == errorcode.ER_DUP_ENTRY:
                     return response_error(Codes.user_exists, e)
@@ -64,64 +64,86 @@ def create(**data):
     }
 
 
+# def details(get_resp=False, **data):
+#     query = """SELECT id, username, email, name, about, isAnonymous,
+#               GROUP_CONCAT(DISTINCT thread
+#               ORDER BY thread SEPARATOR ' ') AS subscriptions,
+#               GROUP_CONCAT(DISTINCT Fr.followee
+#               ORDER BY Fr.followee SEPARATOR ' ') AS followers,
+#               GROUP_CONCAT(DISTINCT Fe.follower
+#               ORDER BY Fe.follower SEPARATOR ' ') AS following
+#               FROM (SELECT * FROM User WHERE email='%s') AS Usr
+#               LEFT JOIN Subscriptions
+#               ON Usr.email=Subscriptions.user
+#               LEFT JOIN Followers AS Fr
+#               ON Usr.email=Fr.follower
+#               LEFT JOIN Followers AS Fe
+#               ON Usr.email=Fe.followee""" % data['user']
+#
+#     with closing(cnxpool.get_connection()) as db:
+#         with closing(db.cursor(dictionary=True)) as cursor:
+#             cursor.execute(query)
+#             user = cursor.fetchone()
+#
+#     if user['email'] is None or len(user) == 0:
+#         user = {}
+#
+#     else:
+#         if user['followers'] is None:
+#             user['followers'] = []
+#         else:
+#             user['followers'] = user['followers'].split()
+#
+#         if user['following'] is None:
+#             user['following'] = []
+#         else:
+#             user['following'] = user['following'].split()
+#
+#         if user['subscriptions'] is None:
+#             user['subscriptions'] = []
+#         else:
+#             # Строка не проходит тесты :(
+#             # Аналогично в forum.list_users
+#             user['subscriptions'] = user['subscriptions'].split()
+#             list_subscriptions = list()
+#             for elem in user['subscriptions']:
+#                 list_subscriptions.append(int(elem))
+#             user['subscriptions'] = list_subscriptions
+#
+#         user['isAnonymous'] = bool(user['isAnonymous'])
+#
+#     if get_resp:
+#         if len(user) == 0:
+#             str_err = "User %s not found" % data['user']
+#             response = response_error(Codes.not_found, str_err)
+#         else:
+#             response = {
+#                 'code': Codes.ok,
+#                 'response': user
+#             }
+#         return response
+#
+#     return user
+
 def details(get_resp=False, **data):
-    query = """SELECT id, username, email, name, about, isAnonymous,
-              GROUP_CONCAT(DISTINCT thread
-              ORDER BY thread SEPARATOR ' ') AS subscriptions,
-              GROUP_CONCAT(DISTINCT Fr.followee
-              ORDER BY Fr.followee SEPARATOR ' ') AS followers,
-              GROUP_CONCAT(DISTINCT Fe.follower
-              ORDER BY Fe.follower SEPARATOR ' ') AS following
-              FROM (SELECT * FROM User WHERE email='%s') AS Usr
-              LEFT JOIN Subscriptions
-              ON Usr.email=Subscriptions.user
-              LEFT JOIN Followers AS Fr
-              ON Usr.email=Fr.follower
-              LEFT JOIN Followers AS Fe
-              ON Usr.email=Fe.followee""" % data['user']
+    query_user = "SELECT * FROM User WHERE email='%s'" % data['user']
 
-    with closing(cnxpool.get_connection()) as db:
-        with closing(db.cursor(dictionary=True)) as cursor:
-            cursor.execute(query)
-            user = cursor.fetchone()
+    try:
+        user = execute(query_user)[0]
+        user['followers'] = get_lists.get_followers_list(data['user'])
+        user['following'] = get_lists.get_following_list(data['user'])
+        user['subscriptions'] = get_lists.get_subscriptions_list(data['user'])
 
-    if user['email'] is None or len(user) == 0:
-        user = {}
-
-    else:
-        if user['followers'] is None:
-            user['followers'] = []
-        else:
-            user['followers'] = user['followers'].split()
-
-        if user['following'] is None:
-            user['following'] = []
-        else:
-            user['following'] = user['following'].split()
-
-        if user['subscriptions'] is None:
-            user['subscriptions'] = []
-        else:
-            # Строка не проходит тесты :(
-            # Аналогично в forum.list_users
-            user['subscriptions'] = user['subscriptions'].split()
-            list_subscriptions = list()
-            for elem in user['subscriptions']:
-                list_subscriptions.append(int(elem))
-            user['subscriptions'] = list_subscriptions
-
-        user['isAnonymous'] = bool(user['isAnonymous'])
+    except MysqlException as e:
+        if get_resp:
+            return response_error(Codes.unknown_error, e)
+        raise e
 
     if get_resp:
-        if len(user) == 0:
-            str_err = "User %s not found" % data['user']
-            response = response_error(Codes.not_found, str_err)
-        else:
-            response = {
-                'code': Codes.ok,
-                'response': user
-            }
-        return response
+        return {
+            'code': Codes.ok,
+            'response': user
+        }
 
     return user
 
