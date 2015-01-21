@@ -151,3 +151,7 @@ TRUNCATE TABLE Thread;
 TRUNCATE TABLE Forum;
 TRUNCATE TABLE User;
 
+
+
+
+CREATE INDEX index_name ON User(name);
