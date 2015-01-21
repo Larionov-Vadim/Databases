@@ -133,6 +133,7 @@ def details(get_resp=False, **data):
         user['followers'] = get_lists.get_followers_list(data['user'])
         user['following'] = get_lists.get_following_list(data['user'])
         user['subscriptions'] = get_lists.get_subscriptions_list(data['user'])
+        user['isAnonymous'] = bool(user['isAnonymous'])
 
     except MysqlException as e:
         if get_resp:
@@ -324,7 +325,7 @@ def list_posts(**data):
 
     ret = list()
     for post in posts:
-        #post['date'] = post['date'].strftime("%Y-%m-%d %H:%M:%S")
+        post['date'] = post['date'].strftime("%Y-%m-%d %H:%M:%S")
         post['isApproved'] = bool(post['isApproved'])
         post['isDeleted'] = bool(post['isDeleted'])
         post['isEdited'] = bool(post['isEdited'])

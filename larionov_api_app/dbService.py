@@ -23,7 +23,7 @@ settings_db = {
     'host': 'localhost',
     'user': 'vadim',
     'passwd': 'vadim',
-    'db': 'forum_db_test',
+    'db': 'forum_db',
     'charset': 'utf8'
 }
 
@@ -35,7 +35,7 @@ def connect():
         'host': 'localhost',
         'user': 'vadim',
         'passwd': 'vadim',
-        'db': 'forum_db_test',
+        'db': 'forum_db',
         'charset': 'utf8',
         'cursorclass': MySQLdb.cursors.SSDictCursor
     }

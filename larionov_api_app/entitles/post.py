@@ -116,7 +116,7 @@ def details(get_resp=False, **data):
                 thread_data = {'thread': post['thread']}
                 post['thread'] = thread.details(**thread_data)
 
-        #post['date'] = post['date'].strftime("%Y-%m-%d %H:%M:%S")
+        post['date'] = post['date'].strftime("%Y-%m-%d %H:%M:%S")
         post['isApproved'] = bool(post['isApproved'])
         post['isDeleted'] = bool(post['isDeleted'])
         post['isEdited'] = bool(post['isEdited'])
@@ -291,7 +291,7 @@ def list_posts(get_resp=False, **data):
     ret_posts = list()
     for pst in posts:
         if pst['forum'] is not None:
-            #pst['date'] = pst['date'].strftime("%Y-%m-%d %H:%M:%S")
+            pst['date'] = pst['date'].strftime("%Y-%m-%d %H:%M:%S")
             ret_posts.append(pst)
         else:
             ret_posts = []

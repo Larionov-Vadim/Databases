@@ -55,13 +55,13 @@ CREATE TABLE IF NOT EXISTS Thread (
 	dislikes INT NOT NULL DEFAULT '0',
 	isClosed TINYINT(1) NOT NULL DEFAULT '0',
 	isDeleted TINYINT(1) NOT NULL DEFAULT '0',
-	date VARCHAR(20) NOT NULL,
+	date DATETIME NOT NULL,
 	forum VARCHAR(150) NOT NULL,
 	user VARCHAR(70) NOT NULL,
 	posts INT NOT NULL DEFAULT '0',
 	PRIMARY KEY(id),
-	INDEX idxThr_usr_date (user, date(10)),
-	INDEX idxThr_forum_date (forum, date(10)),
+	INDEX idxThr_usr_date (user, date),
+	INDEX idxThr_forum_date (forum, date),
 	FOREIGN KEY(forum) REFERENCES Forum(short_name) ON UPDATE CASCADE ON DELETE NO ACTION,
 	FOREIGN KEY(user) REFERENCES User(email) ON UPDATE CASCADE ON DELETE NO ACTION
 	)
@@ -88,15 +88,15 @@ CREATE TABLE IF NOT EXISTS Post (
 	isEdited TINYINT(1) NOT NULL DEFAULT '0',
 	isHighlighted TINYINT(1) NOT NULL DEFAULT '0' COMMENT 'Подсвеченный',
 	isSpam TINYINT(1) NOT NULL DEFAULT '0',
-	date VARCHAR(20) NOT NULL,
+	date DATETIME NOT NULL,
 	parent INT DEFAULT NULL,
 	forum VARCHAR(150) NOT NULL,
 	thread INT NOT NULL,
 	user VARCHAR(70) NOT NULL,
 	PRIMARY KEY(id),
-	INDEX idxP_usr_date (user, date(10)),
-	INDEX idxP_forum_date (forum, date(10)),
-	INDEX idxP_thr_date (thread, date(10)),
+	INDEX idxP_usr_date (user, date),
+	INDEX idxP_forum_date (forum, date),
+	INDEX idxP_thr_date (thread, date),
 	FOREIGN KEY(forum) REFERENCES Forum(short_name) ON UPDATE CASCADE ON DELETE NO ACTION,
 	FOREIGN KEY(thread) REFERENCES Thread(id) ON UPDATE CASCADE ON DELETE NO ACTION,
 	FOREIGN KEY(user) REFERENCES User(email) ON UPDATE CASCADE ON DELETE NO ACTION
@@ -149,12 +149,5 @@ TRUNCATE TABLE Subscriptions;
 TRUNCATE TABLE Post;
 TRUNCATE TABLE Thread;
 TRUNCATE TABLE Forum;
-TRUNCATE TABLE User; 
+TRUNCATE TABLE User;
 
-
-DELIMITER $
-CREATE TRIGGER upd_posts AFTER INSERT ON Post
-FOR EACH ROW BEGIN
-	UPDATE Thread SET posts=posts+1 WHERE id=NEW.thread;
-END$
-DELIMITER ;
