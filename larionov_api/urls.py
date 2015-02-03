@@ -15,4 +15,5 @@ urlpatterns = patterns('',
     url(r'^db/api/clear/', 'larionov_api_app.views.clear_view'),
 
     #url(r'$', 'larionov_api_app.views.hello'),
+    url(r'^$', 'larionov_api_app.views.hello'),
 )

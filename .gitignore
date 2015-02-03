@@ -1,7 +1,9 @@
 .idea/
 db.sqlite3
 
-#local files
+# local files
 uwsgi.log
 err.html
 larionov_api.sock
+*.pyc
+*.sock

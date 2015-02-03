@@ -3,16 +3,13 @@ __author__ = 'vadim'
 from larionov_api_app.dbService import cnxpool, execute
 from contextlib import closing
 from mysql.connector import Error as MysqlException
-
-# import MySQLdb
-# from larionov_api_app import dbService
 from mysql.connector import errorcode
 from larionov_api_app.service import Codes, response_error, check_required_params
+from larionov_api_app import get_lists
 import user
 import post
 import thread
 
-from larionov_api_app import get_lists
 
 def create(**data):
     try:
@@ -63,7 +60,6 @@ def details(get_resp=False, **data):
         with closing(db.cursor(dictionary=True)) as cursor:
             cursor.execute(query % data['forum'])
             forum = cursor.fetchone()
-
     if forum is not None:
         if ('related' in data) and (data['related'] == 'user'):
             forum['user'] = user.details(**{'user': forum['user']})
@@ -113,86 +109,7 @@ def list_posts(**data):
     }
 
 
-# def list_users(**data):
-#     query = """SELECT id, username, email, name, about, isAnonymous,
-#               GROUP_CONCAT(DISTINCT thread
-#               ORDER BY thread SEPARATOR ' ') AS subscriptions,
-#               GROUP_CONCAT(DISTINCT Fr.followee
-#               ORDER BY Fr.followee SEPARATOR ' ') AS followers,
-#               GROUP_CONCAT(DISTINCT Fe.follower
-#               ORDER BY Fe.follower SEPARATOR ' ') AS following
-#               FROM User INNER JOIN
-#               (SELECT user FROM Post WHERE forum='%s' GROUP BY user) AS T ON User.email=T.user
-#               LEFT JOIN Subscriptions
-#               ON User.email=Subscriptions.user
-#               LEFT JOIN Followers AS Fr
-#               ON User.email=Fr.follower
-#               LEFT JOIN Followers AS Fe
-#               ON User.email=Fe.followee """ % data['forum']
-#
-#     if 'since_id' in data:
-#         query += """WHERE id>=%s """ % data['since_id']
-#     query += "GROUP BY id "
-#
-#     if 'order' in data:
-#         query += """ORDER BY name %s """ % data['order']
-#     else:
-#         query += """ORDER BY name DESC """
-#
-#     if 'limit' in data:
-#         query += """LIMIT %s """ % data['limit']
-#
-#     with closing(cnxpool.get_connection()) as db:
-#         with closing(db.cursor(dictionary=True)) as cursor:
-#             try:
-#                 cursor.execute(query)
-#                 users = cursor.fetchall()
-#             except MysqlException as e:
-#                 response_error(Codes.unknown_error, e)
-#
-#     for user_data in users:
-#         if user_data['email'] is not None:
-#             if user_data['followers'] is None:
-#                 user_data['followers'] = []
-#             else:
-#                 user_data['followers'] = user_data['followers'].split()
-#
-#             if user_data['following'] is None:
-#                 user_data['following'] = []
-#             else:
-#                 user_data['following'] = user_data['following'].split()
-#
-#             if user_data['subscriptions'] is None:
-#                 user_data['subscriptions'] = []
-#             else:
-#                 # Строка не проходит тесты :(
-#                 user_data['subscriptions'] = user_data['subscriptions'].split()
-#                 list_subscriptions = list()
-#                 for elem in user_data['subscriptions']:
-#                     list_subscriptions.append(int(elem))
-#                 user_data['subscriptions'] = list_subscriptions
-#
-#             user_data['isAnonymous'] = bool(user_data['isAnonymous'])
-#         else:
-#             users = []
-#
-#     ret_users = list()
-#     for usr in users:
-#         ret_users.append(usr)
-#
-#     response = {
-#         'code': Codes.ok,
-#         'response': '',
-#     }
-#
-#     if len(users) != 0:
-#         response['response'] = ret_users
-#
-#     return response
-
-
 def list_users(**data):
-
     query = """SELECT id, username, email, name, about, isAnonymous
            FROM User WHERE email IN
            (SELECT DISTINCT user FROM Post WHERE forum='%s') """ % data['forum']

@@ -53,21 +53,6 @@ ROOT_URLCONF = 'larionov_api.urls'
 
 WSGI_APPLICATION = 'larionov_api.wsgi.application'
 
-
-# Database
-# https://docs.djangoproject.com/en/1.7/ref/settings/#databases
-
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.mysql',
-#         'NAME': 'forum_db',
-#         'USER': 'vadim',
-#         'PASSWORD': 'vadim',
-#         'HOST': '',
-#         'PORT': '',
-#     }
-# }
-
 # Internationalization
 # https://docs.djangoproject.com/en/1.7/topics/i18n/
 

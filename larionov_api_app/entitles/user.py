@@ -4,9 +4,6 @@ from larionov_api_app.dbService import cnxpool, execute
 from contextlib import closing
 import mysql.connector
 from mysql.connector import Error as MysqlException
-
-# import MySQLdb
-# from larionov_api_app import dbService
 from mysql.connector import errorcode
 from larionov_api_app.service import Codes
 from larionov_api_app.service import response_error
@@ -64,67 +61,6 @@ def create(**data):
     }
 
 
-# def details(get_resp=False, **data):
-#     query = """SELECT id, username, email, name, about, isAnonymous,
-#               GROUP_CONCAT(DISTINCT thread
-#               ORDER BY thread SEPARATOR ' ') AS subscriptions,
-#               GROUP_CONCAT(DISTINCT Fr.followee
-#               ORDER BY Fr.followee SEPARATOR ' ') AS followers,
-#               GROUP_CONCAT(DISTINCT Fe.follower
-#               ORDER BY Fe.follower SEPARATOR ' ') AS following
-#               FROM (SELECT * FROM User WHERE email='%s') AS Usr
-#               LEFT JOIN Subscriptions
-#               ON Usr.email=Subscriptions.user
-#               LEFT JOIN Followers AS Fr
-#               ON Usr.email=Fr.follower
-#               LEFT JOIN Followers AS Fe
-#               ON Usr.email=Fe.followee""" % data['user']
-#
-#     with closing(cnxpool.get_connection()) as db:
-#         with closing(db.cursor(dictionary=True)) as cursor:
-#             cursor.execute(query)
-#             user = cursor.fetchone()
-#
-#     if user['email'] is None or len(user) == 0:
-#         user = {}
-#
-#     else:
-#         if user['followers'] is None:
-#             user['followers'] = []
-#         else:
-#             user['followers'] = user['followers'].split()
-#
-#         if user['following'] is None:
-#             user['following'] = []
-#         else:
-#             user['following'] = user['following'].split()
-#
-#         if user['subscriptions'] is None:
-#             user['subscriptions'] = []
-#         else:
-#             # Строка не проходит тесты :(
-#             # Аналогично в forum.list_users
-#             user['subscriptions'] = user['subscriptions'].split()
-#             list_subscriptions = list()
-#             for elem in user['subscriptions']:
-#                 list_subscriptions.append(int(elem))
-#             user['subscriptions'] = list_subscriptions
-#
-#         user['isAnonymous'] = bool(user['isAnonymous'])
-#
-#     if get_resp:
-#         if len(user) == 0:
-#             str_err = "User %s not found" % data['user']
-#             response = response_error(Codes.not_found, str_err)
-#         else:
-#             response = {
-#                 'code': Codes.ok,
-#                 'response': user
-#             }
-#         return response
-#
-#     return user
-
 def details(get_resp=False, **data):
     query_user = "SELECT * FROM User WHERE email='%s'" % data['user']
 
@@ -151,6 +87,7 @@ def details(get_resp=False, **data):
 
 def follow(**data):
     # Здесь должна быть проверка на корректность данных в **data
+
     # Здесь всё верно
     query = """INSERT INTO Followers(follower, followee)
                VALUES ('%s', '%s')""" % (data['followee'], data['follower'])
@@ -178,7 +115,6 @@ def follow(**data):
 
 def unfollow(**data):
     query = "DELETE FROM Followers WHERE follower=%s AND followee=%s"
-
     # Тут всё верно
     values = (data['followee'], data['follower'])
 
@@ -222,7 +158,6 @@ def update_profile(**data):
 
 
 def list_followers(**data):
-    # Коннекшены либо передавать дальше надо, либо закрывать раньше!
     query = """SELECT DISTINCT Followers.followee AS user
                 FROM User LEFT JOIN Followers ON User.email=Followers.follower
                 INNER JOIN User AS Usr ON Followers.followee=Usr.email

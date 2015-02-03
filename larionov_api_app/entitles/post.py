@@ -3,9 +3,6 @@ __author__ = 'vadim'
 from larionov_api_app.dbService import cnxpool
 from contextlib import closing
 from mysql.connector import Error as MysqlException
-
-# import MySQLdb
-# from larionov_api_app import dbService
 from mysql.connector import errorcode
 from larionov_api_app.service import response_error
 from larionov_api_app.service import Codes
@@ -48,7 +45,6 @@ def create(**data):
             try:
                 cursor.execute(query, values)
                 data['id'] = cursor.lastrowid
-                # Вот тут Deadlock
                 db.commit()
                 cursor.execute("UPDATE Thread SET posts=posts+1 WHERE id=%s" % data['thread'])
                 db.commit()
@@ -82,7 +78,6 @@ def create(**data):
     }
 
 
-# Using Primary key
 def details(get_resp=False, **data):
     query = """SELECT date, dislikes, forum, id, isApproved,
               isDeleted, isEdited, isHighlighted, isSpam, likes,
@@ -218,7 +213,6 @@ def update(**data):
 
 def vote(**data):
     # Нужна ли проверка required params?
-
     if str(data['vote']) == '1':
         query = "UPDATE Post SET likes=likes+1 WHERE id=%s " % data['post']
     elif str(data['vote']) == '-1':

@@ -4,20 +4,8 @@ from contextlib import closing
 
 import MySQLdb
 import MySQLdb.cursors
-#from DBUtils.PooledDB import PooledDB
 import mysql.connector
 import mysql.connector.pooling
-
-#pool_size = 3
-#pool = PooledDB(mysql.connector, pool_size, database='forum_db', user='vadim', host='127.0.0.1', passwd='vadim', charset='utf8')
-
-# db1 = MySQLdb.connect(**{'host': 'localhost',
-#         'user': 'vadim',
-#         'passwd': 'vadim',
-#         'db': 'forum_db',
-#         'charset': 'utf8',
-#         'cursorclass': MySQLdb.cursors.SSDictCursor})
-
 
 settings_db = {
     'host': 'localhost',
@@ -26,10 +14,9 @@ settings_db = {
     'db': 'forum_db',
     'charset': 'utf8'
 }
+cnxpool = mysql.connector.pooling.MySQLConnectionPool(pool_size=2, **settings_db)
 
-cnxpool = mysql.connector.pooling.MySQLConnectionPool(pool_size=4, **settings_db)
 
-# Добавил тестовую базу данных
 def connect():
     settings_db1 = {
         'host': 'localhost',

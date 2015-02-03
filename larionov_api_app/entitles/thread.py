@@ -3,7 +3,6 @@ __author__ = 'vadim'
 from larionov_api_app.dbService import cnxpool
 from contextlib import closing
 from mysql.connector import Error as MysqlException
-
 import MySQLdb
 from mysql.connector import errorcode
 from larionov_api_app import dbService
@@ -11,7 +10,7 @@ from larionov_api_app.service import response_error
 from larionov_api_app.service import Codes
 import user
 import forum
-from larionov_api_app.service import check_optional_params, check_required_params
+from larionov_api_app.service import check_required_params
 
 
 def create(**data):

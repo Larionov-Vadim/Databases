@@ -1,7 +1,6 @@
 __author__ = 'vadim'
 
-from larionov_api_app.dbService import cnxpool, execute
-from contextlib import closing
+from larionov_api_app.dbService import execute
 
 
 def get_followers_list(email):

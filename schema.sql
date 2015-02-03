@@ -1,11 +1,3 @@
------------------------------------
--- User Table
-----------------------------------
-	-- FOREIGN KEY(followers) REFERENCES Followers(id_user) ON UPDATE CASCADE
-	-- FOREIGN KEY(following) REFERENCES Following(id_user) ON UPDATE CASCADE,
-	-- FOREIGN KEY(subscriptions) REFERENCES Subscriptions(id_user) ON UPDATE CASCADE
-DROP TABLE IF EXISTS User;
-
 CREATE TABLE IF NOT EXISTS User (
 	id INT NOT NULL AUTO_INCREMENT,
 	username VARCHAR(70),
@@ -14,18 +6,10 @@ CREATE TABLE IF NOT EXISTS User (
 	about TEXT,
 	isAnonymous TINYINT(1) NOT NULL DEFAULT '0',
 	PRIMARY KEY(email),
-	UNIQUE KEY id_unique (id),
-	INDEX idx_email_id (email, id)
+	UNIQUE KEY id_unique (id)
 	)
 	ENGINE=InnoDB
 	DEFAULT CHARACTER SET='utf8';
-
--- Если всё быстро, то добавить какой-нибудь индекс по ??name(число)
-
------------------------------------
--- Forum Table
------------------------------------
-DROP TABLE IF EXISTS Forum;
 
 CREATE TABLE IF NOT EXISTS Forum (
 	id INT NOT NULL AUTO_INCREMENT,
@@ -33,18 +17,12 @@ CREATE TABLE IF NOT EXISTS Forum (
 	short_name VARCHAR(150) NOT NULL,
 	user VARCHAR(70) NOT NULL,
 	PRIMARY KEY(short_name),
-	UNIQUE KEY (id, name),
+	UNIQUE KEY uniqIdx_id(id),
+	UNIQUE KEY(name),
 	FOREIGN KEY(user) REFERENCES User(email) ON UPDATE CASCADE ON DELETE NO ACTION
 	)
 	ENGINE=InnoDB
 	DEFAULT CHARACTER SET = 'utf8';
-
-
------------------------------------
--- Thread Table (Тема)
--- slug - коротокое название темы
------------------------------------
-DROP TABLE IF EXISTS Thread;
 
 CREATE TABLE IF NOT EXISTS Thread (
 	id INT NOT NULL AUTO_INCREMENT,
@@ -55,28 +33,16 @@ CREATE TABLE IF NOT EXISTS Thread (
 	dislikes INT NOT NULL DEFAULT '0',
 	isClosed TINYINT(1) NOT NULL DEFAULT '0',
 	isDeleted TINYINT(1) NOT NULL DEFAULT '0',
-	date DATETIME NOT NULL,
+	date D	ATETIME NOT NULL,
 	forum VARCHAR(150) NOT NULL,
 	user VARCHAR(70) NOT NULL,
 	posts INT NOT NULL DEFAULT '0',
 	PRIMARY KEY(id),
-	INDEX idxThr_usr_date (user, date),
-	INDEX idxThr_forum_date (forum, date),
 	FOREIGN KEY(forum) REFERENCES Forum(short_name) ON UPDATE CASCADE ON DELETE NO ACTION,
 	FOREIGN KEY(user) REFERENCES User(email) ON UPDATE CASCADE ON DELETE NO ACTION
 	)
 	ENGINE=InnoDB
 	DEFAULT CHARACTER SET = 'utf8';
-
-
--- UNIQUE KEY slug_title_unique (slug, title),
--- key: user,date DESC
--- key: forum, date DESC
-
------------------------------------
--- Post Table (комментарий) 
------------------------------------
-DROP TABLE IF EXISTS Post;
 
 CREATE TABLE IF NOT EXISTS Post (
 	id INT NOT NULL AUTO_INCREMENT,
@@ -94,9 +60,6 @@ CREATE TABLE IF NOT EXISTS Post (
 	thread INT NOT NULL,
 	user VARCHAR(70) NOT NULL,
 	PRIMARY KEY(id),
-	INDEX idxP_usr_date (user, date),
-	INDEX idxP_forum_date (forum, date),
-	INDEX idxP_thr_date (thread, date),
 	FOREIGN KEY(forum) REFERENCES Forum(short_name) ON UPDATE CASCADE ON DELETE NO ACTION,
 	FOREIGN KEY(thread) REFERENCES Thread(id) ON UPDATE CASCADE ON DELETE NO ACTION,
 	FOREIGN KEY(user) REFERENCES User(email) ON UPDATE CASCADE ON DELETE NO ACTION
@@ -104,14 +67,6 @@ CREATE TABLE IF NOT EXISTS Post (
 	ENGINE=InnoDB
 	DEFAULT CHARACTER SET = 'utf8';
 
-
------------------------------------
--- Followers (подписчики), 
--- Following (те, на кого подписан),
--- Subscriptions (подписки на thread-ы)
--- Tables
-----------------------------------
-DROP TABLE IF EXISTS Followers;
 
 CREATE TABLE IF NOT EXISTS Followers (
 	follower VARCHAR(70) NOT NULL,
@@ -121,9 +76,6 @@ CREATE TABLE IF NOT EXISTS Followers (
 	)
 	ENGINE=InnoDB
 	DEFAULT CHARACTER SET = 'utf8';
-
-
-DROP TABLE IF EXISTS Subscriptions;
 
 CREATE TABLE IF NOT EXISTS Subscriptions (
 	user VARCHAR(70) NOT NULL,
@@ -144,14 +96,13 @@ DROP TABLE IF EXISTS Forum;
 DROP TABLE IF EXISTS User;
 
 
-TRUNCATE TABLE Followers;
-TRUNCATE TABLE Subscriptions;
-TRUNCATE TABLE Post;
-TRUNCATE TABLE Thread;
-TRUNCATE TABLE Forum;
-TRUNCATE TABLE User;
-
-
-
-
+-- CREATE INDEXES
 CREATE INDEX index_name ON User(name);
+CREATE INDEX idxThr_usr_date ON Thread(user, date);
+CREATE INDEX idxThr_forum_date ON Thread(forum, date);
+CREATE INDEX idxP_usr_date ON Post(user, date);
+CREATE INDEX idxP_forum_date ON Post(forum, date);
+CREATE INDEX idxP_thr_date ON Post(thread, date);
+CREATE INDEX Idx_usr_thr ON Post(user, thread);
+CREATE UNIQUE INDEX iniqIdx_fer_fee ON Followers(follower, followee);
+CREATE UNIQUE INDEX uniqIdx_fee_fer ON Followers(followee, follower);
